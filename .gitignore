@@ -1,0 +1,13 @@
+# Исполняемые и объектные файлы отладки
+/Debug/
+/VisionConsole/Debug/
+
+# Исполняемые и объектные файлы релиза
+/Release/
+/VisionConsole/Release/
+
+# Всякие файлы Visual Studio
+*.sdf
+*.opensdf
+*.suo
+*.vcxproj.user
