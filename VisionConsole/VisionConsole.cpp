@@ -19,27 +19,59 @@
 using namespace cv;
 using namespace std;
 
+//Выводит видео-поток с камеры
+void aiming(VideoCapture & cap, VideoCapture & cap2);
 
 int main(int argc, _TCHAR* argv[])
 {
 
-	StereoVision sv(&cout);
+	StereoVision sv;
 	Mat leftColor, rightColor;
 	Mat leftGrey, rightGrey;
 
-	//Загружаем картинки
-	leftColor = imread("images\\calib_left.JPG");
-	rightColor = imread("images\\calib_right.JPG");
+	VideoCapture cap0(0);
+	VideoCapture cap1(1);
 
-	//Переводим в черно-белые
-	cvtColor(leftColor, leftGrey, CV_RGB2GRAY);
-	cvtColor(rightColor, rightGrey, CV_RGB2GRAY);
+	while (true)
+	{
+		aiming(cap0, cap1);
+		//leftColor = imread("images\\calib_left_3.jpg");
+		//rightColor = imread("images\\calib_right_3.jpg");
 
-	StereoCalibData data =  sv.Calibrate(leftGrey, rightGrey, Size(9,9));
+		cap0 >> leftColor;
+		cap1 >> rightColor;
 
+		//Переводим в черно-белые
+		cvtColor(leftColor, leftGrey, CV_RGB2GRAY);
+		cvtColor(rightColor, rightGrey, CV_RGB2GRAY);
 
-	sv.CalculatePointCloud(leftColor, rightColor);
+		//Калибровка
+		StereoCalibData data = sv.Calibrate(leftGrey, rightGrey, Size(9, 9));
+		sv.CalculatePointCloud(leftGrey, rightGrey);
+	}
+	//data.Save("calib.yml");
+
 
 	return 0;
 }
 
+
+//Выводимт видео-поток с камеры
+void aiming(VideoCapture & cap1, VideoCapture & cap2)
+{
+	Mat img1, img2, img;
+	while (true)
+	{
+		cap1 >> img1;
+		cap2 >> img2;
+		img = Mat(img1.rows, img1.cols + img2.cols, CV_8UC3);
+		Mat left(img, Rect(0, 0, img1.cols, img1.rows));
+		Mat right(img, Rect(img1.cols, 0, img2.cols, img1.rows));
+		img1.copyTo(left);
+		img2.copyTo(right);
+
+		imshow("Aiming", img);
+		if (waitKey(1) != -1)
+			break;
+	}
+}

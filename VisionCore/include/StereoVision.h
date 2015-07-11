@@ -31,13 +31,26 @@
 class StereoVision
 {
 public:
+	
+	//Конструкторы
+	StereoVision();
+	StereoVision(const char *name);
+	StereoVision(StereoCalibData calibData);
 
-	StereoVision(std::ostream* strean);
-	//StereoVision(const char *name);
-	//StereoVision(StereoCalibData calibData);
-
+	/* Калибровка стерео-камеры (пары камер)
+	* param[in] left - изображение с левой камеры (CV_8UC1 - серое)
+	* param[in] right - изображение с правой камеры
+	* param[in] patternSize - число углов шахматной доски
+	(число квадратов на стороне - 1)
+	* result - необходимый набор параметров для построения облака точек
+	*/
 	StereoCalibData StereoVision::Calibrate(const cv::Mat& left, const cv::Mat& right, cv::Size patternSize);
 
+	/* Построение облака точек по двум изображениям
+	* param[in] left - левое изображение с откалиброванной камеры
+	* param[in] right - правое изображение с откалиброванной камеры
+	* result - облако точек
+	*/
 	IPointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const;
 
 	StereoCalibData GetCalibData();
@@ -45,6 +58,9 @@ public:
 private:
 	StereoCalibData calibData;			//Калибровочные данные
 	std::ostream* out;					//Поток отладочного вывода
+
+	//Создает матрицы исправленяи искажений
+	void _createUndistortRectifyMaps(StereoCalibData& data);
 };
 
 #endif

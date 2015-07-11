@@ -1,0 +1,47 @@
+%YAML:1.0
+IMS: [ 0, 0 ]
+CML: !!opencv-matrix
+   rows: 0
+   cols: 0
+   dt: u
+   data: []
+CMR: !!opencv-matrix
+   rows: 0
+   cols: 0
+   dt: u
+   data: []
+CDL: !!opencv-matrix
+   rows: 0
+   cols: 0
+   dt: u
+   data: []
+CDR: !!opencv-matrix
+   rows: 0
+   cols: 0
+   dt: u
+   data: []
+PL: !!opencv-matrix
+   rows: 0
+   cols: 0
+   dt: u
+   data: []
+PR: !!opencv-matrix
+   rows: 0
+   cols: 0
+   dt: u
+   data: []
+RL: !!opencv-matrix
+   rows: 0
+   cols: 0
+   dt: u
+   data: []
+RR: !!opencv-matrix
+   rows: 0
+   cols: 0
+   dt: u
+   data: []
+Q: !!opencv-matrix
+   rows: 0
+   cols: 0
+   dt: u
+   data: []
