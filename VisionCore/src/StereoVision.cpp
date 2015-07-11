@@ -1,4 +1,4 @@
-﻿#include "StereoVision.h"
+#include "StereoVision.h"
 
 StereoVision::StereoVision(std::ostream* stream)
 {
@@ -16,23 +16,23 @@ StereoVision::StereoVision(StereoCalibData calibData)
 }*/
 
 /* Калибровка стерео-камеры (пары камер)
- * param[in] left - изображение с левой камеры (CV_8UC1 - серое)
- * param[in] right - изображение с правой камеры
- * param[in] patternSize - число углов шахматной доски
-             (число квадратов на стороне - 1)
- * result - необходимый набор параметров для построения облака точек
+* param[in] left - изображение с левой камеры (CV_8UC1 - серое)
+* param[in] right - изображение с правой камеры
+* param[in] patternSize - число углов шахматной доски
+(число квадратов на стороне - 1)
+* result - необходимый набор параметров для построения облака точек
 */
 StereoCalibData StereoVision::Calibrate(const cv::Mat& left, const cv::Mat& right, cv::Size patternSize)
 {
 	/* Алгоритм стерео-калибровки:
-		1. Находим на них шахматную доску и определяем углы
-		2. Создаем реальные координаты углов шахматной доски:
-		   считаем, что начальный угол имеет координаты (0,0,0), а остальные
-		   смещаются от него на заданное расстояние - размер клетки
-		3. Выполняем stereoCalibrate, чтобы получитьт
-		   матрицы камер, дисторсию и матрицы перехода между камерами (R, T)
-		4. Выполняем stereoRectify
-		5. Получаем матрицы для remap
+	1. Находим на них шахматную доску и определяем углы
+	2. Создаем реальные координаты углов шахматной доски:
+	считаем, что начальный угол имеет координаты (0,0,0), а остальные
+	смещаются от него на заданное расстояние - размер клетки
+	3. Выполняем stereoCalibrate, чтобы получитьт
+	матрицы камер, дисторсию и матрицы перехода между камерами (R, T)
+	4. Выполняем stereoRectify
+	5. Получаем матрицы для remap
 	*/
 
 	const int size = 1;
@@ -49,14 +49,14 @@ StereoCalibData StereoVision::Calibrate(const cv::Mat& left, const cv::Mat& righ
 	cv::Mat CM1(3, 3, CV_64FC1), CM2(3, 3, CV_64FC1);								//CameraMatrix указывает как перейти от 3D точек в мировой СК вк 2D точкам в изображении
 	cv::Mat D1, D2;		//Коэффициенты дисторсии
 	cv::Mat R,			//Матрица поворота между СК первой и второй камер
-			T,			//Вектор перехода между СК первой и второй камер
-			E,			//Существенная матрица (Устанавливает соотношения между точками изображения?????) (тут что-то связано с эпиполярными линиями)
-			F;			//Фундаментальная матрица
+		T,			//Вектор перехода между СК первой и второй камер
+		E,			//Существенная матрица (Устанавливает соотношения между точками изображения?????) (тут что-то связано с эпиполярными линиями)
+		F;			//Фундаментальная матрица
 
 	//Выходные параметры для stereoRectify
 	cv::Mat R1, R2,		//Матрицы поворота для исправления (3х3)
-			P1, P2;		//Проективная матрица в исправленной системе координат (3х4)
-						//Первые 3 столбца этих матриц - новые матрицы камер
+		P1, P2;		//Проективная матрица в исправленной системе координат (3х4)
+	//Первые 3 столбца этих матриц - новые матрицы камер
 	cv::Mat Q;			//Матрица перевода смещения в глубину
 
 	//Выходные данные для построение карт выравнивания
@@ -93,10 +93,10 @@ StereoCalibData StereoVision::Calibrate(const cv::Mat& left, const cv::Mat& righ
 	//2. --------------------------- Строим реальные кооринаты точек ------------------------------------------------------------
 	/*for (int i = 0; i < patternSize.height; i++)
 	{
-		for (int j = 0; j < patternSize.width; j++)
-		{
-			objectPointsSingle.push_back(cv::Point3f(i*size, j*size, 0));
-		}
+	for (int j = 0; j < patternSize.width; j++)
+	{
+	objectPointsSingle.push_back(cv::Point3f(i*size, j*size, 0));
+	}
 	}*/
 
 	for (int j = 0; j<patternSize.height*patternSize.width; j++)
@@ -106,8 +106,8 @@ StereoCalibData StereoVision::Calibrate(const cv::Mat& left, const cv::Mat& righ
 	//3. --------------------------- Стерео калибровка --------------------------------------------------------------------------
 	//Документация: http://goo.gl/mKCH63
 	stereoCalibrate(objectPoints, imagePointsLeft, imagePointsRight,
-					CM1, D1, CM2, D2, left.size(), R, T, E, F, CV_CALIB_SAME_FOCAL_LENGTH | CV_CALIB_ZERO_TANGENT_DIST,
-					cvTermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 100, 1e-5));
+		CM1, D1, CM2, D2, left.size(), R, T, E, F, CV_CALIB_SAME_FOCAL_LENGTH | CV_CALIB_ZERO_TANGENT_DIST,
+		cvTermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 100, 1e-5));
 
 	//4. Получение данных для выравнивания
 	cv::stereoRectify(CM1, D1, CM2, D2, left.size(), R, T, R1, R2, P1, P2, Q);
@@ -176,10 +176,10 @@ StereoCalibData StereoVision::Calibrate(const cv::Mat& left, const cv::Mat& righ
 
 
 /* Построение облака точек по двум изображениям
- * param[in] left - левое изображение с откалиброванной камеры
- * param[in] right - правое изображение с откалиброванной камеры
- * result - облако точек
- */
+* param[in] left - левое изображение с откалиброванной камеры
+* param[in] right - правое изображение с откалиброванной камеры
+* result - облако точек
+*/
 IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const
 {
 	cv::Mat leftRemaped, rightRemaped;
