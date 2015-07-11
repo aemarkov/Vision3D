@@ -1,5 +1,7 @@
-﻿#ifndef __STEREOCALIBDATA_H__
+#ifndef __STEREOCALIBDATA_H__
 #define __STEREOCALIBDATA_H__
+
+#include <opencv2/opencv.hpp>
 
 /*///////////////////////////////////////////////////////////////////////////////////////
 //                                StereoCalibData                                      //
@@ -17,6 +19,43 @@
 
 class StereoCalibData
 {
+public:
+
+	//Матрицы камер
+	cv::Mat LeftCameraMatrix;
+	cv::Mat RightCameraMatrix;
+
+	//Параметры дисторсии
+	cv::Mat LeftCameraDistortions;
+	cv::Mat RightCameraDistortions;
+
+	//Параметры для remap
+	cv::Mat MapLeftX;
+	cv::Mat MapLeftY;
+	cv::Mat MapRightX;
+	cv::Mat MapRightY;
+
+	//Матрица перехода от карты смещеняи к глубине
+	cv::Mat Q;
+
+	//Конструктор по-умолчанию
+	StereoCalibData();
+
+	//Конструктор копирования (создание ссылки)
+	StereoCalibData(const StereoCalibData& other);
+
+	//Оператор присвоения (создание ссылки)
+	StereoCalibData& operator=(const StereoCalibData& other);
+
+	//Создание полной копии
+	StereoCalibData& Clone();
+
+	/*Тут необходим код загрузки и созранения
+	но я не знаю, как сохранять под имененм
+	что-то вроде такого:
+	Save(name);
+	StereoCalibData(name);*/
+
 
 };
 

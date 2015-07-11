@@ -1,4 +1,4 @@
-﻿#ifndef __STEREOVISION_H__
+#ifndef __STEREOVISION_H__
 #define __STEREOVISION_H__
 
 /*///////////////////////////////////////////////////////////////////////////////////////
@@ -15,9 +15,36 @@
 //    IPointCloudStorage)                                                              //
 /*///////////////////////////////////////////////////////////////////////////////////////
 
+#include <opencv2/core/mat.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/video/background_segm.hpp>
+
+#include <vector>
+#include <ostream>
+
+#include "StereoCalibData.h"
+#include "IPointCloudStorage.h"
+#include "StaticHelpers.h"
+
 class StereoVision
 {
+public:
 
+	StereoVision(std::ostream* strean);
+	//StereoVision(const char *name);
+	//StereoVision(StereoCalibData calibData);
+
+	StereoCalibData StereoVision::Calibrate(const cv::Mat& left, const cv::Mat& right, cv::Size patternSize);
+
+	IPointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const;
+
+	StereoCalibData GetCalibData();
+
+private:
+	StereoCalibData calibData;			//Калибровочные данные
+	std::ostream* out;					//Поток отладочного вывода
 };
 
 #endif
