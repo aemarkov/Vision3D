@@ -92,6 +92,11 @@
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="VisionConsole.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VisionCore\VisionCore.vcxproj">
+      <Project>{af8e8e36-0828-4290-98d2-2a06965475cc}</Project>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
