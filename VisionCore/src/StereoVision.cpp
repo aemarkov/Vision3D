@@ -96,6 +96,10 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 		cornerSubPix(left[i], imagePointsLeftSingle, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
 		cornerSubPix(right[i], imagePointsRightSingle, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
 
+		//Исправляем порядок найденных углов
+		_fixChessboardCorners(imagePointsLeftSingle, patternSize);
+		_fixChessboardCorners(imagePointsRightSingle, patternSize);
+
 		cv::drawChessboardCorners(left[i], patternSize, imagePointsLeftSingle, true);
 		cv::drawChessboardCorners(right[i], patternSize, imagePointsRightSingle, true);
 
@@ -104,7 +108,6 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 		cv::waitKey(0);
 		cv::destroyWindow("c1");
 		cv::destroyWindow("c2");
-		
 
 		//Добавляем в вектор векторов
 		imagePointsLeft.push_back(imagePointsLeftSingle);
@@ -128,23 +131,13 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 	//3. --------------------------- Стерео калибровка --------------------------------------------------------------------------
 	//Документация: http://goo.gl/mKCH63
 	stereoCalibrate(objectPoints, imagePointsLeft, imagePointsRight,
-		CM1, D1, CM2, D2, imSize, R, T, E, F, cv::CALIB_FIX_ASPECT_RATIO +
-		cv::CALIB_ZERO_TANGENT_DIST +
-		cv::CALIB_RATIONAL_MODEL +
-		cv::CALIB_FIX_K3 + cv::CALIB_FIX_K4 + cv::CALIB_FIX_K5,
-		cv::TermCriteria(cv::TermCriteria::COUNT + cv::TermCriteria::EPS, 100, 1e-5));
+		CM1, D1, CM2, D2, imSize, R, T, E, F, CV_CALIB_SAME_FOCAL_LENGTH | CV_CALIB_ZERO_TANGENT_DIST,
+		cvTermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 100, 1e-5));
 
 	cv::stereoRectify(CM1, D1, CM2, D2, imSize, R, T, R1, R2, P1, P2, Q);
 
 	// -------------------------- Сохранение результатов ------------------------------------------------------------------------
 
-	/*D1 = (cv::Mat_<double>(1, 4) << 0, 0, 0, 0);
-	D2 = D1;
-	R1 = (cv::Mat_<double>(3, 3) <<
-		1, 0, 0,
-		0, 1, 0,
-		0, 0, 1);
-	R2 = R1;*/
 
 	calibData.ImageSize = imSize;
 	calibData.LeftCameraMatrix = CM1.clone();
@@ -168,7 +161,7 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 * param[in] right - правое изображение с откалиброванной камеры
 * result - облако точек
 */
-IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const
+IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Ptr<cv::StereoSGBM> sgbm) const
 {
 	cv::Mat leftRemaped, rightRemaped;
 	cv::Mat depth, normalDepth;
@@ -176,30 +169,19 @@ IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const
 	cv::remap(left, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 	cv::remap(right, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
-	cv::Ptr<cv::StereoSGBM> sgbm = cv::StereoSGBM::create(0, 80, 9);
-	
-	/*sgbm->setMinDisparity(-20);
-	sgbm->setNumDisparities(80);
-	sgbm->setDisp12MaxDiff(10);
-	sgbm->setUniquenessRatio(10);
-	sgbm->setSpeckleWindowSize(100);
-	sgbm->setSpeckleRange(32);
-	sgbm->setMode(cv::StereoSGBM::MODE_SGBM); // : StereoSGBM::MODE_HH
-	sgbm->setP1(1600);
-	sgbm->setP2(2200);*/
 	sgbm->compute(leftRemaped, rightRemaped, depth);
 	cv::normalize(depth, normalDepth, 0, 255, CV_MINMAX, CV_8U);
 
-	cv::imwrite("images\\left_remap.png", leftRemaped);
-	cv::imwrite("images\\right_remap.png", rightRemaped);
+	//cv::imwrite("images\\left_remap.png", leftRemaped);
+	//cv::imwrite("images\\right_remap.png", rightRemaped);
 
 	cv::imshow("w1", leftRemaped);
 	cv::imshow("w2", rightRemaped);
-	cv::imshow("w3", normalDepth);
-	cv::waitKey(0);
-	cv::destroyWindow("w1");
+	cv::imshow("depth", normalDepth);
+	//cv::waitKey(0);
+	/*cv::destroyWindow("w1");
 	cv::destroyWindow("w2");
-	cv::destroyWindow("w3");
+	cv::destroyWindow("w3");*/
 
 	return NULL;
 }
@@ -218,4 +200,37 @@ void StereoVision::_createUndistortRectifyMaps(StereoCalibData& data)
 {
 	cv::initUndistortRectifyMap(data.LeftCameraMatrix, data.LeftCameraDistortions, data.LeftCameraRot, data.LeftCameraRectifiedProjection, data.ImageSize, CV_32FC1, data.LeftMapX, data.LeftMapY);
 	cv::initUndistortRectifyMap(data.RightCameraMatrix, data.RightCameraDistortions, data.RightCameraRot, data.RightCameraRectifiedProjection, data.ImageSize, CV_32FC1, data.RightMapX, data.RightMapY);
+}
+
+
+//Устраняет переворот найденных точек
+void StereoVision::_fixChessboardCorners(std::vector<cv::Point2f>& corners, cv::Size patternSize)
+{
+	//Точки должны распологаться горизонталями, слева-направо, сверху-вниз
+
+	if (corners.size() >= 2)
+	{
+		cv::Point2f p1 = corners[0];
+		cv::Point2f p2 = corners[1];
+
+		float dx = p2.x - p1.x;
+		float dy = p2.y - p1.y;
+
+		//В нормальной ситуации, dx>0 && dx>dy
+		//Если перевернуто - dx<dy
+
+		if (abs(dx) < abs(dy))
+		{
+			std::vector<cv::Point2f> cornersCopy(corners);
+			corners = std::vector<cv::Point2f>(cornersCopy.size());
+
+			for (int i = 0; i < cornersCopy.size(); i++)
+			{
+				int row = patternSize.height- i % patternSize.height - 1;
+				int col = i / patternSize.height;
+				int index = row*patternSize.width + col;
+				corners[index] = cornersCopy[i];
+			}
+		}
+	}
 }

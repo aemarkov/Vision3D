@@ -51,7 +51,7 @@ public:
 	* param[in] right - правое изображение с откалиброванной камеры
 	* result - облако точек
 	*/
-	IPointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const;
+	IPointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Ptr<cv::StereoSGBM> sgbm) const;
 
 	StereoCalibData GetCalibData();
 
@@ -61,6 +61,9 @@ private:
 
 	//Создает матрицы исправленяи искажений
 	void _createUndistortRectifyMaps(StereoCalibData& data);
+
+	//Устраняет переворот найденных точек
+	void _fixChessboardCorners(std::vector<cv::Point2f>& corners, cv::Size patternSize);
 };
 
 #endif

@@ -22,13 +22,42 @@ using namespace std;
 //Выводит видео-поток с камеры
 bool aiming(VideoCapture & cap, VideoCapture & cap2);
 
+void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey);
+void callback(int wtf, void* data);
+void getImagesCapture();
+void getImagesFile();
+
+struct CallbackData
+{
+	StereoVision* sv;
+	Mat* left;
+	Mat* right;
+};
+
+//Ptr<StereoSGBM> sgbm;
+int minDisparity = 30;
+int numDisparities = 80;
+int disp12MaxDiff = 10;
+int uniquenessRatio = 10;
+int speckleWindowSize = 100;
+int speckleRange = 32;
+int p1 = 1600;
+int p2 = 2200;
+
 int main(int argc, _TCHAR* argv[])
 {
 
-	StereoVision sv;
+	getImagesFile();
+	
+	return 0;
+}
+
+void getImagesCapture()
+{
 	Mat leftColor, rightColor;
 	Mat leftGrey, rightGrey;
-	
+
+	StereoVision sv;
 	vector<Mat> left, right;
 
 	VideoCapture cap0(0);
@@ -54,15 +83,39 @@ int main(int argc, _TCHAR* argv[])
 		{
 			//Калибровка
 			StereoCalibData data = sv.Calibrate(left, right, Size(9, 9));
-			sv.CalculatePointCloud(leftGrey, rightGrey);
-			data.Save("calib.yml");
 
+			displayMap(sv, leftGrey, rightGrey);
+
+			data.Save("calib.yml");
 			left.clear();
 			right.clear();
 		}
 	}
 
-	return 0;
+}
+
+void getImagesFile()
+{
+	Mat leftColor, rightColor;
+	Mat leftGrey, rightGrey;
+
+	StereoVision sv;
+	vector<Mat> left, right;
+
+	leftColor = imread("images\\1.jpg");
+	rightColor = imread("images\\2.jpg");
+
+	//Переводим в черно-белые
+	cvtColor(leftColor, leftGrey, CV_RGB2GRAY);
+	cvtColor(rightColor, rightGrey, CV_RGB2GRAY);
+
+	left.push_back(leftGrey);
+	right.push_back(rightGrey);
+
+	//Калибровка
+	StereoCalibData data = sv.Calibrate(left, right, Size(7, 7));
+
+	displayMap(sv, leftGrey, rightGrey);
 }
 
 
@@ -90,4 +143,56 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 	}
 
 	return code == 13;
+}
+
+void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
+{
+	namedWindow("depth");
+	namedWindow("trackbars");
+	
+
+	CallbackData data;
+	data.left = &leftGrey;
+	data.right = &rightGrey;
+	data.sv = &sv;
+
+	createTrackbar("Min Disparity", "trackbars", &minDisparity, 100, callback, (void*)&data);
+	createTrackbar("Num Disparties", "trackbars", &minDisparity, 100, callback, (void*)&data);
+	createTrackbar("Disp12MaxDiff", "trackbars", &minDisparity, 100, callback, (void*)&data);
+	createTrackbar("Uniqueness Ratio", "trackbars", &minDisparity, 100, callback, (void*)&data);
+	createTrackbar("Speckle Win Size", "trackbars", &minDisparity, 200, callback, (void*)&data);
+	createTrackbar("Speckle Range", "trackbars", &minDisparity, 10, callback, (void*)&data);
+	createTrackbar("P1", "trackbars", &minDisparity, 3000, callback, (void*)&data);
+	createTrackbar("P2", "trackbars", &minDisparity, 3000, callback, (void*)&data);
+
+	callback(0, (void*)&data);
+
+	waitKey(0);
+
+	destroyWindow("depth");
+	destroyWindow("w1");
+	destroyWindow("w2");
+	destroyWindow("trackbars");
+}
+
+void callback(int wtf, void* data)
+{
+	CallbackData* cData = (CallbackData*)data;
+	Ptr<StereoSGBM> sgbm = cv::StereoSGBM::create(0, 80, 9);
+
+	if (numDisparities % 16 != 0)
+		numDisparities -= numDisparities % 16;
+
+	sgbm->setMinDisparity(minDisparity - 50);
+	sgbm->setNumDisparities(numDisparities);
+	sgbm->setDisp12MaxDiff(disp12MaxDiff-1);
+	sgbm->setUniquenessRatio(uniquenessRatio);
+	sgbm->setSpeckleWindowSize(speckleWindowSize);
+	sgbm->setSpeckleRange(speckleRange);
+	sgbm->setMode(cv::StereoSGBM::MODE_SGBM); // : StereoSGBM::MODE_HH
+	sgbm->setP1(p1);
+	sgbm->setP2(p2);
+
+	cData->sv->CalculatePointCloud(*(cData->left), *(cData->right), sgbm);
+
 }
