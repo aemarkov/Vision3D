@@ -20,7 +20,7 @@ using namespace cv;
 using namespace std;
 
 //Выводит видео-поток с камеры
-void aiming(VideoCapture & cap, VideoCapture & cap2);
+bool aiming(VideoCapture & cap, VideoCapture & cap2);
 
 int main(int argc, _TCHAR* argv[])
 {
@@ -28,15 +28,15 @@ int main(int argc, _TCHAR* argv[])
 	StereoVision sv;
 	Mat leftColor, rightColor;
 	Mat leftGrey, rightGrey;
+	
+	vector<Mat> left, right;
 
 	VideoCapture cap0(0);
 	VideoCapture cap1(1);
 
 	while (true)
 	{
-		aiming(cap0, cap1);
-		//leftColor = imread("images\\calib_left_3.jpg");
-		//rightColor = imread("images\\calib_right_3.jpg");
+		bool res = aiming(cap0, cap1);
 
 		cap0 >> leftColor;
 		cap1 >> rightColor;
@@ -45,25 +45,37 @@ int main(int argc, _TCHAR* argv[])
 		cvtColor(leftColor, leftGrey, CV_RGB2GRAY);
 		cvtColor(rightColor, rightGrey, CV_RGB2GRAY);
 
-		//Калибровка
-		StereoCalibData data = sv.Calibrate(leftGrey, rightGrey, Size(9, 9));
-		sv.CalculatePointCloud(leftGrey, rightGrey);
-	}
-	//data.Save("calib.yml");
+		left.push_back(leftGrey);
+		right.push_back(rightGrey);
 
+		waitKey(500);
+
+		if (res)
+		{
+			//Калибровка
+			StereoCalibData data = sv.Calibrate(left, right, Size(9, 9));
+			sv.CalculatePointCloud(leftGrey, rightGrey);
+			data.Save("calib.yml");
+
+			left.clear();
+			right.clear();
+		}
+	}
 
 	return 0;
 }
 
 
 //Выводимт видео-поток с камеры
-void aiming(VideoCapture & cap1, VideoCapture & cap2)
+bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 {
 	Mat img1, img2, img;
+	int code;
 	while (true)
 	{
-		cap1 >> img1;
-		cap2 >> img2;
+		cap1 >> img2;
+		cap2 >> img1;
+
 		img = Mat(img1.rows, img1.cols + img2.cols, CV_8UC3);
 		Mat left(img, Rect(0, 0, img1.cols, img1.rows));
 		Mat right(img, Rect(img1.cols, 0, img2.cols, img1.rows));
@@ -71,7 +83,11 @@ void aiming(VideoCapture & cap1, VideoCapture & cap2)
 		img2.copyTo(right);
 
 		imshow("Aiming", img);
-		if (waitKey(1) != -1)
+		code = waitKey(1);
+		if (code != -1)
 			break;
+		
 	}
+
+	return code == 13;
 }

@@ -44,7 +44,7 @@ public:
 	(число квадратов на стороне - 1)
 	* result - необходимый набор параметров для построения облака точек
 	*/
-	StereoCalibData StereoVision::Calibrate(const cv::Mat& left, const cv::Mat& right, cv::Size patternSize);
+	StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const std::vector<cv::Mat>& right, cv::Size patternSize);
 
 	/* Построение облака точек по двум изображениям
 	* param[in] left - левое изображение с откалиброванной камеры
