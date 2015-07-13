@@ -55,9 +55,10 @@ public:
 
 	StereoCalibData GetCalibData();
 
+	std::ostream* out;					//Поток отладочного вывода
 private:
 	StereoCalibData calibData;			//Калибровочные данные
-	std::ostream* out;					//Поток отладочного вывода
+	
 
 	//Создает матрицы исправленяи искажений
 	void _createUndistortRectifyMaps(StereoCalibData& data);

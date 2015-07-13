@@ -46,8 +46,8 @@ int p2 = 2200;
 
 int main(int argc, _TCHAR* argv[])
 {
-
-	getImagesFile();
+	//getImagesFile();
+	getImagesCapture();
 	
 	return 0;
 }
@@ -60,8 +60,11 @@ void getImagesCapture()
 	StereoVision sv;
 	vector<Mat> left, right;
 
-	VideoCapture cap0(0);
-	VideoCapture cap1(1);
+	sv.out = &cout;
+
+	//Получаем изображение с веб-камер
+	VideoCapture cap0(1);
+	VideoCapture cap1(2);
 
 	while (true)
 	{
@@ -82,7 +85,7 @@ void getImagesCapture()
 		if (res)
 		{
 			//Калибровка
-			StereoCalibData data = sv.Calibrate(left, right, Size(9, 9));
+			StereoCalibData data = sv.Calibrate(left, right, Size(9, 6));
 
 			displayMap(sv, leftGrey, rightGrey);
 
@@ -102,8 +105,13 @@ void getImagesFile()
 	StereoVision sv;
 	vector<Mat> left, right;
 
-	leftColor = imread("images\\1.jpg");
-	rightColor = imread("images\\2.jpg");
+	string f1, f2;
+	cout << "Enter file names\n";
+	cin >> f1;
+	cin >> f2;
+
+	leftColor = imread(f1.c_str());
+	rightColor = imread(f2.c_str());
 
 	//Переводим в черно-белые
 	cvtColor(leftColor, leftGrey, CV_RGB2GRAY);
@@ -126,8 +134,8 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 	int code;
 	while (true)
 	{
-		cap1 >> img2;
-		cap2 >> img1;
+		cap1 >> img1;
+		cap2 >> img2;
 
 		img = Mat(img1.rows, img1.cols + img2.cols, CV_8UC3);
 		Mat left(img, Rect(0, 0, img1.cols, img1.rows));
@@ -148,7 +156,7 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
 {
 	namedWindow("depth");
-	namedWindow("trackbars");
+	namedWindow("trackbars", WINDOW_AUTOSIZE);
 	
 
 	CallbackData data;

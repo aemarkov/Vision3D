@@ -76,6 +76,18 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 						//Первые 3 столбца этих матриц - новые матрицы камер
 	cv::Mat Q;			//Матрица перевода смещения в глубину
 
+	//2. --------------------------- Строим реальные кооринаты точек ------------------------------------------------------------
+
+	/* Здесь мы задаем "реальные" координаты углов шахматной доски. Т.к реальные координаты мы не знаем, то
+	просто принимаем их такими:
+	(0,0) (0,1) ...
+	(1,0) (1,1) ...
+	*/
+
+	for (int j = 0; j<patternSize.height*patternSize.width; j++)
+		objectPointsSingle.push_back(cv::Point3f(j / patternSize.width, j%patternSize.width, 0.0f));
+
+
 	//1. --------------------------- Ищем шахматные доски на изображении --------------------------------------------------------
 
 	for (int i = 0; i < left.size(); i++)
@@ -86,47 +98,26 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 
 		imSize = left[i].size();
 
-		if (!isFoundLeft || !isFoundRight)
+		if (isFoundLeft && isFoundRight)
 		{
-			//Углы не найдены - кидаем исключение?
+			*out << i<<": success\n";
+
+
+			//Уточняем углы (назначение параметров не известно)
+			//Документация: http://goo.gl/7BjZKd
+			cornerSubPix(left[i], imagePointsLeftSingle, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+			cornerSubPix(right[i], imagePointsRightSingle, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+
+			//Добавляем в вектор векторов
+			imagePointsLeft.push_back(imagePointsLeftSingle);
+			imagePointsRight.push_back(imagePointsRightSingle);
+			objectPoints.push_back(objectPointsSingle);
 		}
-
-		//Уточняем углы (назначение параметров не известно)
-		//Документация: http://goo.gl/7BjZKd
-		cornerSubPix(left[i], imagePointsLeftSingle, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
-		cornerSubPix(right[i], imagePointsRightSingle, cv::Size(11, 11), cv::Size(-1, -1), cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
-
-		//Исправляем порядок найденных углов
-		_fixChessboardCorners(imagePointsLeftSingle, patternSize);
-		_fixChessboardCorners(imagePointsRightSingle, patternSize);
-
-		cv::drawChessboardCorners(left[i], patternSize, imagePointsLeftSingle, true);
-		cv::drawChessboardCorners(right[i], patternSize, imagePointsRightSingle, true);
-
-		cv::imshow("c1", left[i]);
-		cv::imshow("c2", right[i]);
-		cv::waitKey(0);
-		cv::destroyWindow("c1");
-		cv::destroyWindow("c2");
-
-		//Добавляем в вектор векторов
-		imagePointsLeft.push_back(imagePointsLeftSingle);
-		imagePointsRight.push_back(imagePointsRightSingle);
+		else
+		{
+			*out << i << ": fail\n";
+		}
 	}
-
-	//2. --------------------------- Строим реальные кооринаты точек ------------------------------------------------------------
-
-	/* Здесь мы задаем "реальные" координаты углов шахматной доски. Т.к реальные координаты мы не знаем, то
-	   просто принимаем их такими:
-	   (0,0) (0,1) ... 
-	   (1,0) (1,1) ...
-	*/
-
-	for (int j = 0; j<patternSize.height*patternSize.width; j++)
-		objectPointsSingle.push_back(cv::Point3f(j / patternSize.width, j%patternSize.width, 0.0f));
-
-	for (int i = 0; i < left.size(); i++)
-		objectPoints.push_back(objectPointsSingle);
 
 	//3. --------------------------- Стерео калибровка --------------------------------------------------------------------------
 	//Документация: http://goo.gl/mKCH63
@@ -172,8 +163,8 @@ IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const
 	sgbm->compute(leftRemaped, rightRemaped, depth);
 	cv::normalize(depth, normalDepth, 0, 255, CV_MINMAX, CV_8U);
 
-	//cv::imwrite("images\\left_remap.png", leftRemaped);
-	//cv::imwrite("images\\right_remap.png", rightRemaped);
+	cv::imwrite("images\\left_remap.png", leftRemaped);
+	cv::imwrite("images\\right_remap.png", rightRemaped);
 
 	cv::imshow("w1", leftRemaped);
 	cv::imshow("w2", rightRemaped);
@@ -200,37 +191,4 @@ void StereoVision::_createUndistortRectifyMaps(StereoCalibData& data)
 {
 	cv::initUndistortRectifyMap(data.LeftCameraMatrix, data.LeftCameraDistortions, data.LeftCameraRot, data.LeftCameraRectifiedProjection, data.ImageSize, CV_32FC1, data.LeftMapX, data.LeftMapY);
 	cv::initUndistortRectifyMap(data.RightCameraMatrix, data.RightCameraDistortions, data.RightCameraRot, data.RightCameraRectifiedProjection, data.ImageSize, CV_32FC1, data.RightMapX, data.RightMapY);
-}
-
-
-//Устраняет переворот найденных точек
-void StereoVision::_fixChessboardCorners(std::vector<cv::Point2f>& corners, cv::Size patternSize)
-{
-	//Точки должны распологаться горизонталями, слева-направо, сверху-вниз
-
-	if (corners.size() >= 2)
-	{
-		cv::Point2f p1 = corners[0];
-		cv::Point2f p2 = corners[1];
-
-		float dx = p2.x - p1.x;
-		float dy = p2.y - p1.y;
-
-		//В нормальной ситуации, dx>0 && dx>dy
-		//Если перевернуто - dx<dy
-
-		if (abs(dx) < abs(dy))
-		{
-			std::vector<cv::Point2f> cornersCopy(corners);
-			corners = std::vector<cv::Point2f>(cornersCopy.size());
-
-			for (int i = 0; i < cornersCopy.size(); i++)
-			{
-				int row = patternSize.height- i % patternSize.height - 1;
-				int col = i / patternSize.height;
-				int index = row*patternSize.width + col;
-				corners[index] = cornersCopy[i];
-			}
-		}
-	}
 }
