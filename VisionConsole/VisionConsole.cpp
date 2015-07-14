@@ -37,12 +37,16 @@ struct CallbackData
 //Ptr<StereoSGBM> sgbm;
 int minDisparity = 30;
 int numDisparities = 80;
+int SADWindowSize = 3;
+int p1 = 1600;
+int p2 = 2200;
 int disp12MaxDiff = 10;
+int preFilterCap = 10;
 int uniquenessRatio = 10;
 int speckleWindowSize = 100;
 int speckleRange = 32;
-int p1 = 1600;
-int p2 = 2200;
+int gaussRange = 1;
+
 
 int main(int argc, _TCHAR* argv[])
 {
@@ -55,6 +59,7 @@ int main(int argc, _TCHAR* argv[])
 void getImagesCapture()
 {
 	Mat leftColor, rightColor;
+	Mat leftResized, rightResized;
 	Mat leftGrey, rightGrey;
 
 	StereoVision sv;
@@ -73,12 +78,15 @@ void getImagesCapture()
 		cap0 >> leftColor;
 		cap1 >> rightColor;
 
-		//Переводим в черно-белые
-		cvtColor(leftColor, leftGrey, CV_RGB2GRAY);
-		cvtColor(rightColor, rightGrey, CV_RGB2GRAY);
+		resize(leftColor, leftResized, Size(0, 0), 0.5, 0.5);
+		resize(rightColor, rightResized, Size(0, 0), 0.5, 0.5);
 
-		left.push_back(leftGrey);
-		right.push_back(rightGrey);
+		//Переводим в черно-белые
+		cvtColor(leftResized, leftGrey, CV_RGB2GRAY);
+		cvtColor(rightResized, rightGrey, CV_RGB2GRAY);
+
+		left.push_back(leftGrey.clone());
+		right.push_back(rightGrey.clone());
 
 		waitKey(500);
 
@@ -156,7 +164,7 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
 {
 	namedWindow("depth");
-	namedWindow("trackbars", WINDOW_AUTOSIZE);
+	namedWindow("trackbars", WINDOW_FREERATIO);
 	
 
 	CallbackData data;
@@ -165,19 +173,25 @@ void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
 	data.sv = &sv;
 
 	createTrackbar("Min Disparity", "trackbars", &minDisparity, 100, callback, (void*)&data);
-	createTrackbar("Num Disparties", "trackbars", &minDisparity, 100, callback, (void*)&data);
-	createTrackbar("Disp12MaxDiff", "trackbars", &minDisparity, 100, callback, (void*)&data);
-	createTrackbar("Uniqueness Ratio", "trackbars", &minDisparity, 100, callback, (void*)&data);
-	createTrackbar("Speckle Win Size", "trackbars", &minDisparity, 200, callback, (void*)&data);
-	createTrackbar("Speckle Range", "trackbars", &minDisparity, 10, callback, (void*)&data);
-	createTrackbar("P1", "trackbars", &minDisparity, 3000, callback, (void*)&data);
-	createTrackbar("P2", "trackbars", &minDisparity, 3000, callback, (void*)&data);
+	createTrackbar("Num Disparties", "trackbars", &numDisparities, 100, callback, (void*)&data);
+	//createTrackbar("SAD Window Size", "trackbars", &SADWindowSize, 20, callback, (void*)&data);
+	createTrackbar("P1", "trackbars", &p1, 3000, callback, (void*)&data);
+	createTrackbar("P2", "trackbars", &p2, 3000, callback, (void*)&data);
+	createTrackbar("Disp12MaxDiff", "trackbars", &disp12MaxDiff, 100, callback, (void*)&data);
+	createTrackbar("preFilterCap", "trackbars", &preFilterCap, 100, callback, (void*)&data);
+	createTrackbar("Uniqueness Ratio", "trackbars", &uniquenessRatio, 100, callback, (void*)&data);
+	createTrackbar("Speckle Win Size", "trackbars", &speckleWindowSize, 200, callback, (void*)&data);
+	createTrackbar("Speckle Range", "trackbars", &speckleRange, 10, callback, (void*)&data);
+	createTrackbar("Blur", "trackbars", &gaussRange, 100, callback, (void*)&data);
+	
 
 	callback(0, (void*)&data);
 
 	waitKey(0);
 
 	destroyWindow("depth");
+	destroyWindow("normal_depth");
+	destroyWindow("blur_depth");
 	destroyWindow("w1");
 	destroyWindow("w2");
 	destroyWindow("trackbars");
@@ -191,16 +205,20 @@ void callback(int wtf, void* data)
 	if (numDisparities % 16 != 0)
 		numDisparities -= numDisparities % 16;
 
+	if (gaussRange < 1)gaussRange = 1;
+	if (gaussRange % 2 == 0)gaussRange += 1;
+
 	sgbm->setMinDisparity(minDisparity - 50);
 	sgbm->setNumDisparities(numDisparities);
+	sgbm->setPreFilterCap(preFilterCap);
+	sgbm->setP1(p1);
+	sgbm->setP2(p2);
 	sgbm->setDisp12MaxDiff(disp12MaxDiff-1);
 	sgbm->setUniquenessRatio(uniquenessRatio);
 	sgbm->setSpeckleWindowSize(speckleWindowSize);
 	sgbm->setSpeckleRange(speckleRange);
 	sgbm->setMode(cv::StereoSGBM::MODE_SGBM); // : StereoSGBM::MODE_HH
-	sgbm->setP1(p1);
-	sgbm->setP2(p2);
 
-	cData->sv->CalculatePointCloud(*(cData->left), *(cData->right), sgbm);
+	cData->sv->CalculatePointCloud(*(cData->left), *(cData->right), sgbm, gaussRange);
 
 }

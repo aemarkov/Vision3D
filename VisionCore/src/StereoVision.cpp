@@ -112,6 +112,22 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 			imagePointsLeft.push_back(imagePointsLeftSingle);
 			imagePointsRight.push_back(imagePointsRightSingle);
 			objectPoints.push_back(objectPointsSingle);
+
+			cv::Mat l = cv::Mat(left[i].rows, left[i].cols, CV_8UC3, cv::Scalar(0, 255, 0));
+			cv::Mat r = cv::Mat(left[i].rows, left[i].cols, CV_8UC3, cv::Scalar(0, 255, 0));
+
+			cv::cvtColor(left[i], l, CV_GRAY2BGR);
+			cv::cvtColor(right[i], r, CV_GRAY2BGR);
+
+			cv::drawChessboardCorners(l, patternSize, std::vector<cv::Point2f>(imagePointsLeftSingle), true);
+			cv::drawChessboardCorners(r, patternSize, std::vector<cv::Point2f>(imagePointsRightSingle), true);
+
+			cv::imshow("left", l);
+			cv::imshow("right", r);
+			cv::waitKey(0);
+			cv::destroyWindow("left");
+			cv::destroyWindow("right");
+
 		}
 		else
 		{
@@ -129,6 +145,8 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 
 	// -------------------------- Сохранение результатов ------------------------------------------------------------------------
 
+	//D1 = (cv::Mat_<double>(1, 4) << 0, 0, 0, 0);
+	//D2 = D1;
 
 	calibData.ImageSize = imSize;
 	calibData.LeftCameraMatrix = CM1.clone();
@@ -152,10 +170,10 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 * param[in] right - правое изображение с откалиброванной камеры
 * result - облако точек
 */
-IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Ptr<cv::StereoSGBM> sgbm) const
+IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Ptr<cv::StereoSGBM> sgbm, int blur) const
 {
 	cv::Mat leftRemaped, rightRemaped;
-	cv::Mat depth, normalDepth;
+	cv::Mat depth, normalDepth, blurDepth;
 
 	cv::remap(left, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 	cv::remap(right, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
@@ -163,16 +181,13 @@ IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const
 	sgbm->compute(leftRemaped, rightRemaped, depth);
 	cv::normalize(depth, normalDepth, 0, 255, CV_MINMAX, CV_8U);
 
-	cv::imwrite("images\\left_remap.png", leftRemaped);
-	cv::imwrite("images\\right_remap.png", rightRemaped);
+	cv::GaussianBlur(normalDepth, blurDepth, cv::Size(blur, blur),0);
 
 	cv::imshow("w1", leftRemaped);
 	cv::imshow("w2", rightRemaped);
-	cv::imshow("depth", normalDepth);
-	//cv::waitKey(0);
-	/*cv::destroyWindow("w1");
-	cv::destroyWindow("w2");
-	cv::destroyWindow("w3");*/
+	cv::imshow("depth", depth);
+	cv::imshow("normal_depth", normalDepth);
+	cv::imshow("blur_depth", blurDepth);
 
 	return NULL;
 }
