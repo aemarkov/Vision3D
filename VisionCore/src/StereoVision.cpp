@@ -100,7 +100,7 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 
 		if (isFoundLeft && isFoundRight)
 		{
-			*out << i<<": success\n";
+			std::cout << i<<": success\n";
 
 
 			//Уточняем углы (назначение параметров не известно)
@@ -127,11 +127,10 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 			cv::waitKey(0);
 			cv::destroyWindow("left");
 			cv::destroyWindow("right");
-
 		}
 		else
 		{
-			*out << i << ": fail\n";
+			std::cout << i << ": fail\n";
 		}
 	}
 
@@ -174,6 +173,7 @@ IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const
 {
 	cv::Mat leftRemaped, rightRemaped;
 	cv::Mat depth, normalDepth, blurDepth;
+	cv::Mat leftDisp, rightDisp;
 
 	cv::remap(left, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 	cv::remap(right, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
@@ -181,20 +181,17 @@ IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const
 	sgbm->compute(leftRemaped, rightRemaped, depth);
 	cv::normalize(depth, normalDepth, 0, 255, CV_MINMAX, CV_8U);
 
-	cv::GaussianBlur(normalDepth, blurDepth, cv::Size(blur, blur),0);
-
 	cv::imshow("w1", leftRemaped);
 	cv::imshow("w2", rightRemaped);
-	cv::imshow("depth", depth);
 	cv::imshow("normal_depth", normalDepth);
-	cv::imshow("blur_depth", blurDepth);
 
 	return NULL;
 }
 
+//Возвращает данные о калибровке
 StereoCalibData StereoVision::GetCalibData()
 {
-	return StereoCalibData();
+	return calibData;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -26,16 +26,7 @@ StereoCalibData::StereoCalibData(const char* filename)
 //Конструктор копирования (создание ссылки)
 StereoCalibData::StereoCalibData(const StereoCalibData& other)
 {
-	this->ImageSize = other.ImageSize;
-	this->LeftCameraMatrix = other.LeftCameraMatrix.clone();
-	this->RightCameraMatrix = other.RightCameraMatrix.clone();
-	this->LeftCameraDistortions = other.LeftCameraDistortions.clone();
-	this->RightCameraDistortions = other.RightCameraDistortions.clone();
-	this->LeftCameraRectifiedProjection = other.LeftCameraRectifiedProjection;
-	this->RightCameraRectifiedProjection = other.RightCameraRectifiedProjection;
-	this->LeftCameraRot = other.LeftCameraRot;
-	this->RightCameraRot = other.RightCameraRot;
-	this->Q = other.Q.clone();
+	_copyToThis(other);
 }
 
 //Оператор присвоения (создание ссылки)
@@ -43,19 +34,25 @@ StereoCalibData& StereoCalibData::operator=(const StereoCalibData& other)
 {
 	if (&other != this)
 	{
-		this->ImageSize = other.ImageSize;
-		this->LeftCameraMatrix = other.LeftCameraMatrix;
-		this->RightCameraMatrix = other.RightCameraMatrix;
-		this->LeftCameraDistortions = other.LeftCameraDistortions;
-		this->RightCameraDistortions = other.RightCameraDistortions;
-		this->LeftCameraRectifiedProjection = other.LeftCameraRectifiedProjection;
-		this->RightCameraRectifiedProjection = other.RightCameraRectifiedProjection;
-		this->LeftCameraRot = other.LeftCameraRot;
-		this->RightCameraRot = other.RightCameraRot;
-		this->Q = other.Q;
+		_copyToThis(other);
 	}
 
 	return *this;
+}
+
+//Общий код копирования в этот объект
+void StereoCalibData::_copyToThis(const StereoCalibData& other)
+{
+	this->ImageSize = other.ImageSize;
+	this->LeftCameraMatrix = other.LeftCameraMatrix;
+	this->RightCameraMatrix = other.RightCameraMatrix;
+	this->LeftCameraDistortions = other.LeftCameraDistortions;
+	this->RightCameraDistortions = other.RightCameraDistortions;
+	this->LeftCameraRectifiedProjection = other.LeftCameraRectifiedProjection;
+	this->RightCameraRectifiedProjection = other.RightCameraRectifiedProjection;
+	this->LeftCameraRot = other.LeftCameraRot;
+	this->RightCameraRot = other.RightCameraRot;
+	this->Q = other.Q;
 }
 
 //Создание полной копии
@@ -79,7 +76,7 @@ StereoCalibData& StereoCalibData::Clone()
 
 
 //Сохраняет данные
-void StereoCalibData::Save(const char* filename)
+void StereoCalibData::Save(const char* filename) const
 {
 	cv::FileStorage fs(filename, cv::FileStorage::WRITE);
 	fs << "IMS" << ImageSize;

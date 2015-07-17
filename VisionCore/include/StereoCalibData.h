@@ -60,8 +60,12 @@ public:
 	StereoCalibData& Clone();
 
 	//Сохраняет данные
-	void Save(const char* filename);
-
+	void Save(const char* filename) const;
+	
+private:
+	
+	//Общий код копирования в этот объект
+	void _copyToThis(const StereoCalibData& other);
 
 };
 

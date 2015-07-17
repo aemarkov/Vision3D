@@ -25,16 +25,14 @@ bool aiming(VideoCapture & cap, VideoCapture & cap2);
 void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey);
 void callback(int wtf, void* data);
 void getImagesCapture();
-void getImagesFile();
 
-struct CallbackData
-{
-	StereoVision* sv;
-	Mat* left;
-	Mat* right;
-};
+//Масштабирует изображение и переводит его в ч\б
+void convertImage(Mat& image, float scale);
 
-//Ptr<StereoSGBM> sgbm;
+//Выполняет калибровку
+void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize);
+
+//Паараметры для SGBM
 int minDisparity = 30;
 int numDisparities = 80;
 int SADWindowSize = 3;
@@ -45,111 +43,64 @@ int preFilterCap = 10;
 int uniquenessRatio = 10;
 int speckleWindowSize = 100;
 int speckleRange = 32;
-int gaussRange = 1;
 
+
+//Структура для передачи данных в обработчики событий
+struct CallbackData
+{
+	StereoVision& sv;
+	Mat& left;
+	Mat& right;
+	
+	CallbackData(StereoVision& sv, Mat& left, Mat& right) :sv(sv), left(left), right(right){}
+};
 
 int main(int argc, _TCHAR* argv[])
 {
-	//getImagesFile();
-	getImagesCapture();
-	
-	return 0;
-}
-
-void getImagesCapture()
-{
-	Mat leftColor, rightColor;
-	Mat leftResized, rightResized;
-	Mat leftGrey, rightGrey;
-
-	StereoVision sv;
-	vector<Mat> left, right;
-
-	sv.out = &cout;
-
-	//Получаем изображение с веб-камер
-	VideoCapture cap0(1);
-	VideoCapture cap1(2);
+	StereoVision sv("calib_small_good.yml");
+	VideoCapture cap1(1), cap2(2);
+	Mat leftIm, rightIm;
 
 	while (true)
 	{
-		bool res = aiming(cap0, cap1);
+		//Калибровка
+		//calibrate(cap1, cap2, sv, Size(9, 6));
+		//sv.GetCalibData().Save("calib.yml");
 
-		cap0 >> leftColor;
-		cap1 >> rightColor;
+		//Захват изображений
+		aiming(cap1, cap2);
+		cap1 >> leftIm;
+		cap2 >> rightIm;
 
-		resize(leftColor, leftResized, Size(0, 0), 0.5, 0.5);
-		resize(rightColor, rightResized, Size(0, 0), 0.5, 0.5);
+		//Уменьшение и перевод в ч\б
+		convertImage(leftIm, 0.5);
+		convertImage(rightIm, 0.5);
 
-		//Переводим в черно-белые
-		cvtColor(leftResized, leftGrey, CV_RGB2GRAY);
-		cvtColor(rightResized, rightGrey, CV_RGB2GRAY);
-
-		left.push_back(leftGrey.clone());
-		right.push_back(rightGrey.clone());
-
-		waitKey(500);
-
-		if (res)
-		{
-			//Калибровка
-			StereoCalibData data = sv.Calibrate(left, right, Size(9, 6));
-
-			displayMap(sv, leftGrey, rightGrey);
-
-			data.Save("calib.yml");
-			left.clear();
-			right.clear();
-		}
+		displayMap(sv, leftIm, rightIm);
 	}
 
+	return 0;
 }
-
-void getImagesFile()
-{
-	Mat leftColor, rightColor;
-	Mat leftGrey, rightGrey;
-
-	StereoVision sv;
-	vector<Mat> left, right;
-
-	string f1, f2;
-	cout << "Enter file names\n";
-	cin >> f1;
-	cin >> f2;
-
-	leftColor = imread(f1.c_str());
-	rightColor = imread(f2.c_str());
-
-	//Переводим в черно-белые
-	cvtColor(leftColor, leftGrey, CV_RGB2GRAY);
-	cvtColor(rightColor, rightGrey, CV_RGB2GRAY);
-
-	left.push_back(leftGrey);
-	right.push_back(rightGrey);
-
-	//Калибровка
-	StereoCalibData data = sv.Calibrate(left, right, Size(7, 7));
-
-	displayMap(sv, leftGrey, rightGrey);
-}
-
 
 //Выводимт видео-поток с камеры
 bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 {
 	Mat img1, img2, img;
+	Mat img1Flip, img2Flip;
 	int code;
 	while (true)
 	{
 		cap1 >> img1;
 		cap2 >> img2;
 
-		img = Mat(img1.rows, img1.cols + img2.cols, CV_8UC3);
-		Mat left(img, Rect(0, 0, img1.cols, img1.rows));
+		flip(img1, img1Flip, 1);
+		flip(img2, img2Flip, 1);
+
+		img = Mat(img1Flip.rows, img1Flip.cols + img2Flip.cols, CV_8UC3);
+		Mat left(img, Rect(0, 0, img1Flip.cols, img1Flip.rows));
 		Mat right(img, Rect(img1.cols, 0, img2.cols, img1.rows));
-		img1.copyTo(left);
-		img2.copyTo(right);
+		img1Flip.copyTo(left);
+		img2Flip.copyTo(right);
 
 		imshow("Aiming", img);
 		code = waitKey(1);
@@ -161,29 +112,62 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 	return code == 13;
 }
 
+//Масштабирует изображение и переводит его в ч\б
+void convertImage(Mat& image, float scale)
+{
+	Mat resized, grey;
+	resize(image, resized, Size(0, 0), scale, scale);
+	cvtColor(resized, grey, CV_RGB2GRAY);
+	image = grey.clone();
+}
+
+
+//Выполняет калибровку
+void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize)
+{
+	Mat leftIm, rightIm;			//Изображения с веб-камер
+	vector<Mat> left, right;		//Списки изображений
+	bool res;
+
+	do
+	{
+		//Показ видео
+		res = aiming(cap1, cap2);
+
+		//Захват изображений
+		cap1 >> leftIm;
+		cap2 >> rightIm;
+
+		//Уменьшение и перевод в ч\б
+		convertImage(leftIm, 0.5);
+		convertImage(rightIm, 0.5);
+
+		left.push_back(leftIm.clone());
+		right.push_back(rightIm.clone());
+
+		waitKey(500);
+	} while (!res);
+
+	sv.Calibrate(left, right, patternSize);
+}
+
 void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
 {
 	namedWindow("depth");
 	namedWindow("trackbars", WINDOW_FREERATIO);
 	
-
-	CallbackData data;
-	data.left = &leftGrey;
-	data.right = &rightGrey;
-	data.sv = &sv;
+	CallbackData data(sv, leftGrey, rightGrey);
 
 	createTrackbar("Min Disparity", "trackbars", &minDisparity, 100, callback, (void*)&data);
 	createTrackbar("Num Disparties", "trackbars", &numDisparities, 100, callback, (void*)&data);
-	//createTrackbar("SAD Window Size", "trackbars", &SADWindowSize, 20, callback, (void*)&data);
+	createTrackbar("SAD Window Size", "trackbars", &SADWindowSize, 20, callback, (void*)&data);
 	createTrackbar("P1", "trackbars", &p1, 3000, callback, (void*)&data);
 	createTrackbar("P2", "trackbars", &p2, 3000, callback, (void*)&data);
 	createTrackbar("Disp12MaxDiff", "trackbars", &disp12MaxDiff, 100, callback, (void*)&data);
 	createTrackbar("preFilterCap", "trackbars", &preFilterCap, 100, callback, (void*)&data);
 	createTrackbar("Uniqueness Ratio", "trackbars", &uniquenessRatio, 100, callback, (void*)&data);
 	createTrackbar("Speckle Win Size", "trackbars", &speckleWindowSize, 200, callback, (void*)&data);
-	createTrackbar("Speckle Range", "trackbars", &speckleRange, 10, callback, (void*)&data);
-	createTrackbar("Blur", "trackbars", &gaussRange, 100, callback, (void*)&data);
-	
+	createTrackbar("Speckle Range", "trackbars", &speckleRange, 10, callback, (void*)&data);	
 
 	callback(0, (void*)&data);
 
@@ -199,14 +183,12 @@ void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
 
 void callback(int wtf, void* data)
 {
-	CallbackData* cData = (CallbackData*)data;
-	Ptr<StereoSGBM> sgbm = cv::StereoSGBM::create(0, 80, 9);
+	CallbackData cData = *(CallbackData*)data;
+
+	Ptr<StereoSGBM> sgbm = cv::StereoSGBM::create(0, 80, SADWindowSize);
 
 	if (numDisparities % 16 != 0)
 		numDisparities -= numDisparities % 16;
-
-	if (gaussRange < 1)gaussRange = 1;
-	if (gaussRange % 2 == 0)gaussRange += 1;
 
 	sgbm->setMinDisparity(minDisparity - 50);
 	sgbm->setNumDisparities(numDisparities);
@@ -219,6 +201,6 @@ void callback(int wtf, void* data)
 	sgbm->setSpeckleRange(speckleRange);
 	sgbm->setMode(cv::StereoSGBM::MODE_SGBM); // : StereoSGBM::MODE_HH
 
-	cData->sv->CalculatePointCloud(*(cData->left), *(cData->right), sgbm, gaussRange);
+	cData.sv.CalculatePointCloud(cData.left, cData.right, sgbm, 0);
 
 }
