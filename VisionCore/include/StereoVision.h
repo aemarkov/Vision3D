@@ -22,7 +22,7 @@
 #include <opencv2/video/background_segm.hpp>
 
 #include <vector>
-#include <ostream>
+#include <fstream>
 
 #include "StereoCalibData.h"
 #include "IPointCloudStorage.h"

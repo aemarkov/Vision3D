@@ -163,6 +163,45 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 	return calibData;
 }
 
+//Построение карты глубины при помощи оптического потока. Плохо.
+cv::Mat createDisparityMapOpticalFlow(const cv::Mat left, const cv::Mat right)
+{
+	cv::Mat flow, disparity, normalizedDisparity;
+	cv::Mat leftColor;
+	cv::calcOpticalFlowFarneback(left, right, flow, 0.5, 3, 12, 3, 5, 1.2, 0);
+
+	disparity = cv::Mat(flow.rows, flow.cols, CV_32FC1);
+
+	for (int x = 0; x < flow.cols; x++)
+	{
+		for (int y = 0; y < flow.rows; y++)
+		{
+			cv::Point2f flowPoint = flow.at<float>(y, x);
+			disparity.at<float>(y, x) = sqrt(flowPoint.x*flowPoint.x + flowPoint.y*flowPoint.y);
+
+		}
+	}
+
+	cv::cvtColor(left, leftColor, CV_GRAY2BGR);
+
+	for (int x = 0; x < flow.cols; x += 5)
+	{
+		for (int y = 0; y < flow.rows; y += 5)
+		{
+			cv::Point2f flowPoint = flow.at<float>(y, x);
+			cv::line(leftColor, cv::Point2f(x, y), cv::Point2f(x + flowPoint.x, y + flowPoint.y), cv::Scalar(0, 255, 0), 1);
+		}
+	}
+
+	cv::imshow("flow", leftColor);
+	cv::waitKey(0);
+	cv::destroyWindow("flow");
+
+	//cv::normalize(disparity, normalizedDisparity, 0, 255, CV_MINMAX, CV_8U);
+	return disparity;
+}
+
+
 
 /* Построение облака точек по двум изображениям
 * param[in] left - левое изображение с откалиброванной камеры
@@ -172,18 +211,55 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Ptr<cv::StereoSGBM> sgbm, int blur) const
 {
 	cv::Mat leftRemaped, rightRemaped;
-	cv::Mat depth, normalDepth, blurDepth;
-	cv::Mat leftDisp, rightDisp;
+	//cv::Mat depth, normalDepth, blurDepth;
+	//cv::Mat leftDisp, rightDisp;
 
 	cv::remap(left, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 	cv::remap(right, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
-	sgbm->compute(leftRemaped, rightRemaped, depth);
+	/*sgbm->compute(leftRemaped, rightRemaped, depth);
 	cv::normalize(depth, normalDepth, 0, 255, CV_MINMAX, CV_8U);
-
 	cv::imshow("w1", leftRemaped);
 	cv::imshow("w2", rightRemaped);
-	cv::imshow("normal_depth", normalDepth);
+	cv::imshow("normal_depth", normalDepth);*/
+
+	cv::Mat flow;
+	cv::calcOpticalFlowFarneback(leftRemaped, rightRemaped, flow, 0.5, 3, 12, 3, 5, 1.2, 0);
+
+	std::vector<cv::Point2f> left_points, right_points;
+	for (int y = 0; y < leftRemaped.rows; y ++) {
+		for (int x = 0; x < leftRemaped.cols; x ++) {
+
+			cv::Point2f flowPoint = flow.at<cv::Point2f>(y, x);
+
+			left_points.push_back(cv::Point2f(x, y));
+			right_points.push_back(cv::Point2f(x + flowPoint.x, y + flowPoint.y));
+		}
+	}
+
+	cv::Mat  out;
+	cv::triangulatePoints(calibData.LeftCameraRectifiedProjection, calibData.RightCameraRectifiedProjection, left_points, right_points, out);
+
+	std::ofstream stream("cloud.obj");
+
+	for (int i = 0; i < out.cols; i++)
+	{
+		float x = out.at<float>(0, i);
+		float y = out.at<float>(1, i);
+		float z = out.at<float>(2, i);
+		float w = out.at<float>(3, i);
+		//if (fabs(w)>0.001)
+		//{
+			stream << "v " << x / w << " " << y / w << " " << z / w << "\n";
+		//}
+	}
+
+	stream.close();
+
+	/*cv::imwrite("left.png",left);
+	cv::imwrite("right.png", right);
+	cv::imwrite("rleft.png", leftRemaped);
+	cv::imwrite("rright.png", rightRemaped);*/
 
 	return NULL;
 }

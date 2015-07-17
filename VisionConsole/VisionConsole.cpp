@@ -33,7 +33,7 @@ void convertImage(Mat& image, float scale);
 void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize);
 
 //Паараметры для SGBM
-int minDisparity = 30;
+int minDisparity = 0;
 int numDisparities = 80;
 int SADWindowSize = 3;
 int p1 = 1600;
@@ -173,9 +173,7 @@ void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
 
 	waitKey(0);
 
-	destroyWindow("depth");
 	destroyWindow("normal_depth");
-	destroyWindow("blur_depth");
 	destroyWindow("w1");
 	destroyWindow("w2");
 	destroyWindow("trackbars");
@@ -189,8 +187,9 @@ void callback(int wtf, void* data)
 
 	if (numDisparities % 16 != 0)
 		numDisparities -= numDisparities % 16;
+	if (numDisparities < 16)numDisparities = 16;
 
-	sgbm->setMinDisparity(minDisparity - 50);
+	sgbm->setMinDisparity(minDisparity);
 	sgbm->setNumDisparities(numDisparities);
 	sgbm->setPreFilterCap(preFilterCap);
 	sgbm->setP1(p1);
