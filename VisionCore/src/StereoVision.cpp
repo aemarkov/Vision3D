@@ -167,15 +167,38 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 /* Построение облака точек по двум изображениям
 * param[in] left - левое изображение с откалиброванной камеры
 * param[in] right - правое изображение с откалиброванной камеры
+* param[out] disparity - карта смещения для визуализации
+* param[in] disparityOnly - строить карту глубины без облака точек
+* result - облако точек
+*/
+PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Mat& disparity, bool disparityOnly) const
+{
+	return _calculatePointCloud(left, right, false, disparity, disparityOnly);
+}
+
+/* Построение облака точек по двум изображениям
+* param[in] left - левое изображение с откалиброванной камеры
+* param[in] right - правое изображение с откалиброванной камеры
+* param[in] disparityOnly - строить карту глубины без облака точек
 * result - облако точек
 */
 PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool disparityOnly) const
+{
+	cv::Mat mat;
+	return _calculatePointCloud(left, right, true, mat, disparityOnly);
+}
+
+//Строит облако точек
+//Соответствующие публичные методы - обертка вокруг него, для красоты
+PointCloudStorage StereoVision::_calculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const
 {
 	cv::Mat leftRemaped, rightRemaped;
 	cv::Mat leftGrey, rightGrey;
 	cv::Mat disparity, normalDisparity;
 	cv::Mat cloud;
 
+
+	//Цветное изображение обесцвечиваем
 	if (left.channels() == 3)
 		cv::cvtColor(left, leftGrey, CV_RGB2GRAY);
 	else
@@ -186,20 +209,28 @@ PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const c
 	else
 		rightGrey = right;
 
+	//Выпрямляем
 	cv::remap(leftGrey, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 	cv::remap(rightGrey, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
+	//Строим карту различий
 	stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
 	cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);
-	cv::imshow("disparity", normalDisparity);
+	
+	if (!noDisparityOut)
+	{
+		disparityResult = normalDisparity.clone();
+	}
 
 	if (!disparityOnly)
 	{
+		//Создаем облако точек
 		cv::reprojectImageTo3D(normalDisparity, cloud, calibData.Q, true);
 		return PointCloudStorage(cloud.clone());
 	}
 	else
 	{
+		//Не создаем облако точек
 		return PointCloudStorage();
 	}
 }
