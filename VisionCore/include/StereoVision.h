@@ -25,7 +25,7 @@
 #include <fstream>
 
 #include "StereoCalibData.h"
-#include "IPointCloudStorage.h"
+#include "PointCloudStorage.h"
 #include "StaticHelpers.h"
 
 class StereoVision
@@ -34,8 +34,12 @@ public:
 	
 	//Конструкторы
 	StereoVision();
-	StereoVision(const char *name);
-	StereoVision(StereoCalibData calibData);
+
+	/* Создает объект и загружает настройки из указанных имен файлов*/
+	StereoVision(const char* calibFileName);
+
+	/* Создает объект используя заданные настройки*/
+	StereoVision(StereoCalibData calibData, cv::Ptr<cv::StereoMatcher> stereoMatcher);
 
 	/* Калибровка стерео-камеры (пары камер)
 	* param[in] left - изображение с левой камеры (CV_8UC1 - серое)
@@ -51,13 +55,24 @@ public:
 	* param[in] right - правое изображение с откалиброванной камеры
 	* result - облако точек
 	*/
-	IPointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Ptr<cv::StereoMatcher> sgbm, int blur) const;
+	PointCloudStorage CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const;
 
+	//Возвращает параметры калибровки
 	StereoCalibData GetCalibData();
 
-	std::ostream* out;					//Поток отладочного вывода
+	//Задат параметры калибровки
+	void SetCalibData(StereoCalibData calibData);
+
+	//Возвращает объект StereoMatcher
+	cv::Ptr<cv::StereoMatcher> GetStereoMatcher();
+
+	//Задает объект StereoBM
+	void SetStereoMatcher(cv::Ptr<cv::StereoMatcher> stereoMatcher);
+
 private:
-	StereoCalibData calibData;			//Калибровочные данные
+
+	StereoCalibData calibData;						//Калибровочные данные
+	cv::Ptr<cv::StereoMatcher> stereoMatcher;		//Объект для построения карты различий
 	
 
 	//Создает матрицы исправленяи искажений

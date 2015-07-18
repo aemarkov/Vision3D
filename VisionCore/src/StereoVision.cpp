@@ -18,10 +18,12 @@ StereoVision::StereoVision(const char *name)
 }
 
 //Получает параметры калибровки
-StereoVision::StereoVision(StereoCalibData calibData)
+StereoVision::StereoVision(StereoCalibData calibData, cv::Ptr<cv::StereoMatcher> stereoMatcher)
 {
 	this->calibData = calibData;
 	_createUndistortRectifyMaps(calibData);
+
+	this->stereoMatcher = stereoMatcher;
 }
 
 
@@ -144,8 +146,6 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 
 	// -------------------------- Сохранение результатов ------------------------------------------------------------------------
 
-	//D1 = (cv::Mat_<double>(1, 4) << 0, 0, 0, 0);
-	//D2 = D1;
 
 	calibData.ImageSize = imSize;
 	calibData.LeftCameraMatrix = CM1.clone();
@@ -163,110 +163,54 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 	return calibData;
 }
 
-//Построение карты глубины при помощи оптического потока. Плохо.
-cv::Mat getOpticalFlow(const cv::Mat left, const cv::Mat right)
-{
-	cv::Mat flow, flowVisualisation;
-	cv::calcOpticalFlowFarneback(left, right, flow, 0.5, 3, 12, 3, 5, 1.2, 0);
-
-	cv::cvtColor(left, flowVisualisation, CV_GRAY2BGR);
-
-	for (int x = 0; x < flow.cols; x += 5)
-	{
-		for (int y = 0; y < flow.rows; y += 5)
-		{
-			cv::Point2f flowPoint = flow.at<float>(y, x);
-			cv::line(flowVisualisation, cv::Point2f(x, y), cv::Point2f(x + flowPoint.x, y + flowPoint.y), cv::Scalar(0, 255, 0), 1);
-		}
-	}
-
-	return flowVisualisation;
-}
-
-
 
 /* Построение облака точек по двум изображениям
 * param[in] left - левое изображение с откалиброванной камеры
 * param[in] right - правое изображение с откалиброванной камеры
 * result - облако точек
 */
-IPointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Ptr<cv::StereoMatcher> sgbm, int blur) const
+PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const
 {
 	cv::Mat leftRemaped, rightRemaped;
-	cv::Mat depth, depth2, normalDepth, normalDepth2;
+	cv::Mat depth, normalDepth;
 
 	cv::remap(left, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 	cv::remap(right, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
 
-	sgbm->compute(leftRemaped, rightRemaped, depth);
+	stereoMatcher->compute(rightRemaped, leftRemaped, depth);
 	cv::normalize(depth, normalDepth, 0, 255, CV_MINMAX, CV_8U);
-	cv::imshow("normal_depth", normalDepth);
+	cv::imshow("disparity", normalDepth);
 
-	sgbm->compute(rightRemaped, leftRemaped, depth2);
-	cv::normalize(depth2, normalDepth2, 0, 255, CV_MINMAX, CV_8U);
-	cv::imshow("normal_depth2", normalDepth2);
-
-	cv::Mat testLeft = cv::imread("images\\head_left.png");
-	cv::Mat testRight = cv::imread("images\\head_right.png");
-	cv::Mat lb, rb;
-	cv::Mat testDepth, normalDepth3;
-
-	cv::cvtColor(testLeft, lb, CV_RGB2GRAY);
-	cv::cvtColor(testRight, rb, CV_RGB2GRAY);
-
-	sgbm->compute(rb, lb, testDepth);
-	cv::normalize(testDepth, normalDepth3, 0, 255, CV_MINMAX, CV_8U);
-	cv::imshow("normal_depth3", normalDepth3);
-
-	cv::imshow("w1", leftRemaped);
-	cv::imshow("w2", rightRemaped);
-
-	/*cv::Mat flow;
-	cv::calcOpticalFlowFarneback(leftRemaped, rightRemaped, flow, 0.5, 3, 12, 3, 5, 1.2, 0);
-
-	std::vector<cv::Point2f> left_points, right_points;
-	for (int y = 0; y < leftRemaped.rows; y ++) {
-		for (int x = 0; x < leftRemaped.cols; x ++) {
-
-			cv::Point2f flowPoint = flow.at<cv::Point2f>(y, x);
-
-			left_points.push_back(cv::Point2f(x, y));
-			right_points.push_back(cv::Point2f(x + flowPoint.x, y + flowPoint.y));
-		}
-	}
-
-	cv::Mat  out;
-	cv::triangulatePoints(calibData.LeftCameraRectifiedProjection, calibData.RightCameraRectifiedProjection, left_points, right_points, out);
-
-	std::ofstream stream("cloud.obj");
-
-	for (int i = 0; i < out.cols; i++)
-	{
-		float x = out.at<float>(0, i);
-		float y = out.at<float>(1, i);
-		float z = out.at<float>(2, i);
-		float w = out.at<float>(3, i);
-		//if (fabs(w)>0.001)
-		//{
-			stream << "v " << x / w << " " << y / w << " " << z / w << "\n";
-		//}
-	}
-
-	stream.close();*/
-
-	/*cv::imwrite("left.png",left);
-	cv::imwrite("right.png", right);
-	cv::imwrite("rleft.png", leftRemaped);
-	cv::imwrite("rright.png", rightRemaped);*/
-
-	return NULL;
+	return PointCloudStorage();
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////                         ГЕТТЕРЫ И СЕТТЕРЫ                  //////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 //Возвращает данные о калибровке
 StereoCalibData StereoVision::GetCalibData()
 {
 	return calibData;
+}
+
+//Задат параметры калибровки
+void StereoVision::SetCalibData(StereoCalibData calibData)
+{
+	this->calibData = calibData;
+}
+
+//Возвращает объект StereoMatcher
+cv::Ptr<cv::StereoMatcher> StereoVision::GetStereoMatcher()
+{
+	return stereoMatcher;
+}
+
+//Задает объект StereoBM
+void StereoVision::SetStereoMatcher(cv::Ptr<cv::StereoMatcher> stereoMatcher)
+{
+	this->stereoMatcher = stereoMatcher;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

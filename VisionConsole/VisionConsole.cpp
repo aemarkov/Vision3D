@@ -33,6 +33,8 @@ void convertImage(Mat& image, float scale);
 //Выполняет калибровку
 void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize);
 
+void disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv);
+
 //Паараметры для SGBM
 /*int minDisparity = 0;
 int numDisparities = 80;
@@ -45,6 +47,7 @@ int uniquenessRatio = 10;
 int speckleWindowSize = 100;
 int speckleRange = 32;*/
 
+//Параметры для BM
 int blockSize = 0;;
 int numDisparities = 0;
 int preFilterSize = 0;
@@ -56,6 +59,8 @@ int speckleWindowSize = 0;
 int speckleRange = 0;
 int disp12MaxDiff = 0;
 int SADWindowSize = 0;
+
+
 
 //Структура для передачи данных в обработчики событий
 struct CallbackData
@@ -70,7 +75,7 @@ struct CallbackData
 int main(int argc, _TCHAR* argv[])
 {
 	StereoVision sv("calib.yml");
-	VideoCapture cap1(0), cap2(1);
+	VideoCapture cap1(1), cap2(0);
 	Mat leftIm, rightIm;
 
 	while (true)
@@ -89,12 +94,14 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(rightIm, 0.5);
 
 		displayMap(sv, leftIm, rightIm);
+
+		disparityRealtime(cap1, cap2, sv);
 	}
 
 	return 0;
 }
 
-//Выводимт видео-поток с камеры
+//Выводимт видео-поток с камер
 bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 {
 	Mat img1, img2, img;
@@ -102,12 +109,16 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 	int code;
 	while (true)
 	{
+		//Получаем изображения
 		cap1 >> img1;
 		cap2 >> img2;
 
+		//Переворачиваем, потому что мои камеры дают изображения
+		//горизонтально отраженное
 		flip(img1, img1Flip, 1);
 		flip(img2, img2Flip, 1);
-
+		
+		//Совмещаем два изображения рядом
 		img = Mat(img1Flip.rows, img1Flip.cols + img2Flip.cols, CV_8UC3);
 		Mat left(img, Rect(0, 0, img1Flip.cols, img1Flip.rows));
 		Mat right(img, Rect(img1.cols, 0, img2.cols, img1.rows));
@@ -115,10 +126,11 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 		img2Flip.copyTo(right);
 
 		imshow("Aiming", img);
+
+		//Выход по нажатию кнопки
 		code = waitKey(1);
 		if (code != -1)
 			break;
-		
 	}
 
 	return code == 13;
@@ -153,7 +165,8 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 		//Уменьшение и перевод в ч\б
 		convertImage(leftIm, 0.5);
 		convertImage(rightIm, 0.5);
-
+		
+		//Добавляем в векторы
 		left.push_back(leftIm.clone());
 		right.push_back(rightIm.clone());
 
@@ -165,7 +178,7 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 
 void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
 {
-	namedWindow("depth");
+	namedWindow("disparity");
 	namedWindow("trackbars", WINDOW_FREERATIO);
 	
 	CallbackData data(sv, leftGrey, rightGrey);
@@ -197,9 +210,7 @@ void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
 
 	waitKey(0);
 
-	destroyWindow("normal_depth");
-	destroyWindow("w1");
-	destroyWindow("w2");
+	destroyWindow("disparity");
 	destroyWindow("trackbars");
 }
 
@@ -229,6 +240,8 @@ void callback(int wtf, void* data)
 	sbm->setSpeckleRange(speckleRange);
 	sbm->setDisp12MaxDiff(disp12MaxDiff);
 
+	cData.sv.SetStereoMatcher(sbm);
+
 	/*Ptr<StereoSGBM> sgbm = StereoSGBM::create(minDisparity, numDisparities, SADWindowSize);
 	sgbm->setPreFilterCap(preFilterCap);
 	sgbm->setP1(p1);
@@ -238,7 +251,26 @@ void callback(int wtf, void* data)
 	sgbm->setSpeckleWindowSize(speckleWindowSize);
 	sgbm->setSpeckleRange(speckleRange);
 	//sgbm->setMode(cv::StereoSGBM::MODE_SGBM); // : StereoSGBM::MODE_HH*/
+	
+	cData.sv.CalculatePointCloud(cData.left, cData.right);
 
-	cData.sv.CalculatePointCloud(cData.left, cData.right, sbm, 0);
+}
 
+
+void disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
+{
+	Mat left, right;
+
+	while (true)
+	{
+		cap1 >> left;
+		cap2 >> right;
+
+		convertImage(left, 0.5);
+		convertImage(right, 0.5);
+
+		sv.CalculatePointCloud(left, right);
+
+		if (waitKey(1) != -1)break;
+	}
 }

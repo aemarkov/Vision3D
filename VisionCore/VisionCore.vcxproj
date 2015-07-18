@@ -85,7 +85,7 @@
     <ClCompile Include="src\StereoVision.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\IPointCloudStorage.h" />
+    <ClInclude Include="include\PointCloudStorage.h" />
     <ClInclude Include="include\StaticHelpers.h" />
     <ClInclude Include="include\StereoCalibData.h" />
     <ClInclude Include="include\StereoVision.h" />
