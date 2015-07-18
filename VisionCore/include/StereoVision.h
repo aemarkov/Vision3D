@@ -51,7 +51,7 @@ public:
 	* param[in] right - правое изображение с откалиброванной камеры
 	* result - облако точек
 	*/
-	IPointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Ptr<cv::StereoSGBM> sgbm, int blur) const;
+	IPointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Ptr<cv::StereoMatcher> sgbm, int blur) const;
 
 	StereoCalibData GetCalibData();
 
