@@ -172,15 +172,15 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const
 {
 	cv::Mat leftRemaped, rightRemaped;
-	cv::Mat depth, normalDepth;
+	cv::Mat disparity, normalDisparity;
 
 	cv::remap(left, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 	cv::remap(right, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
 
-	stereoMatcher->compute(rightRemaped, leftRemaped, depth);
-	cv::normalize(depth, normalDepth, 0, 255, CV_MINMAX, CV_8U);
-	cv::imshow("disparity", normalDepth);
+	stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
+	cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);
+	cv::imshow("disparity", normalDisparity);
 
 	return PointCloudStorage();
 }

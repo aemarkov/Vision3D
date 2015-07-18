@@ -20,12 +20,58 @@
 using namespace cv;
 using namespace std;
 
+
+//Паараметры для StereoSGBM
+struct StereoSGBMParams
+{
+	int minDisparity = 0;
+	int numDisparities = 0;
+	int SADWindowSize = 0;
+	int p1 = 0;
+	int p2 = 0;
+	int disp12MaxDiff = 0;
+	int preFilterCap = 0;
+	int uniquenessRatio = 0;
+	int speckleWindowSize = 0;
+	int speckleRange = 0;
+} stereoSGBMParams;
+
+//Параметры для SteroBM
+struct StereoBMParams
+{
+	int blockSize =  0; 
+	int numDisparities =  0;
+	int preFilterSize =  0;
+	int preFilterCap =  0;
+	int minDisparity =  0;
+	int textureThreshold =  0;
+	int uniquenessRatio =  0;
+	int speckleWindowSize =  0;
+	int speckleRange =  0;
+	int disp12MaxDiff =  0;
+} stereoBMParams;
+
+//Структура для передачи данных в обработчики событий
+struct CallbackData
+{
+	StereoVision& sv;
+	Mat& left;
+	Mat& right;
+	CallbackData(StereoVision& sv, Mat& left, Mat& right) :sv(sv), left(left), right(right){}
+};
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 //Выводит видео-поток с камеры
 bool aiming(VideoCapture & cap, VideoCapture & cap2);
 
-void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey);
-void callback(int wtf, void* data);
-void getImagesCapture();
+void displayTrackbarsSGBM(CallbackData& data);
+void displayTrackbarsBM(CallbackData& data);
+
+//Событие изменения положения ползунка
+void callbackSGBM(int wtf, void* data);
+void callbackBM(int wtf, void* data);
 
 //Масштабирует изображение и переводит его в ч\б
 void convertImage(Mat& image, float scale);
@@ -35,42 +81,7 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 
 void disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv);
 
-//Паараметры для SGBM
-/*int minDisparity = 0;
-int numDisparities = 80;
-int SADWindowSize = 3;
-int p1 = 1600;
-int p2 = 2200;
-int disp12MaxDiff = 10;
-int preFilterCap = 10;
-int uniquenessRatio = 10;
-int speckleWindowSize = 100;
-int speckleRange = 32;*/
 
-//Параметры для BM
-int blockSize = 0;;
-int numDisparities = 0;
-int preFilterSize = 0;
-int preFilterCap = 0;
-int minDisparity = 0;
-int textureThreshold = 0;
-int uniquenessRatio = 0;
-int speckleWindowSize = 0;
-int speckleRange = 0;
-int disp12MaxDiff = 0;
-int SADWindowSize = 0;
-
-
-
-//Структура для передачи данных в обработчики событий
-struct CallbackData
-{
-	StereoVision& sv;
-	Mat& left;
-	Mat& right;
-	
-	CallbackData(StereoVision& sv, Mat& left, Mat& right) :sv(sv), left(left), right(right){}
-};
 
 int main(int argc, _TCHAR* argv[])
 {
@@ -93,7 +104,9 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(leftIm, 0.5);
 		convertImage(rightIm, 0.5);
 
-		displayMap(sv, leftIm, rightIm);
+		CallbackData data = CallbackData(sv, leftIm, rightIm);
+		displayTrackbarsBM(data);
+		callbackBM(0, &data);
 
 		disparityRealtime(cap1, cap2, sv);
 	}
@@ -176,87 +189,95 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 	sv.Calibrate(left, right, patternSize);
 }
 
-void displayMap(StereoVision& sv, Mat& leftGrey, Mat& rightGrey)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////                    ОТОБРАЖЕНИЕ ПОЛЗУНКОВ                     ///////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void displayTrackbarsSGBM(CallbackData& data)
 {
-	namedWindow("disparity");
-	namedWindow("trackbars", WINDOW_FREERATIO);
-	
-	CallbackData data(sv, leftGrey, rightGrey);
-
-	/*createTrackbar("Min Disparity", "trackbars", &minDisparity, 100, callback, (void*)&data);
-	createTrackbar("Num Disparties", "trackbars", &numDisparities, 100, callback, (void*)&data);
-	createTrackbar("SAD Window Size", "trackbars", &SADWindowSize, 20, callback, (void*)&data);
-	createTrackbar("P1", "trackbars", &p1, 3000, callback, (void*)&data);
-	createTrackbar("P2", "trackbars", &p2, 3000, callback, (void*)&data);
-	createTrackbar("Disp12MaxDiff", "trackbars", &disp12MaxDiff, 100, callback, (void*)&data);
-	createTrackbar("preFilterCap", "trackbars", &preFilterCap, 100, callback, (void*)&data);
-	createTrackbar("Uniqueness Ratio", "trackbars", &uniquenessRatio, 100, callback, (void*)&data);
-	createTrackbar("Speckle Win Size", "trackbars", &speckleWindowSize, 200, callback, (void*)&data);
-	createTrackbar("Speckle Range", "trackbars", &speckleRange, 10, callback, (void*)&data);&*/
-
-	createTrackbar("Block size", "trackbars", &blockSize, 100, callback, (void*)&data);
-	createTrackbar("Num Disparties", "trackbars", &numDisparities, 100, callback, (void*)&data);
-	createTrackbar("Pre filter size", "trackbars", &preFilterSize, 100, callback, (void*)&data);
-	createTrackbar("Pre filter cap", "trackbars", &preFilterCap, 63, callback, (void*)&data);
-	createTrackbar("Min disparity", "trackbars", &minDisparity, 100, callback, (void*)&data);
-	createTrackbar("Texture threshold", "trackbars", &textureThreshold, 5000, callback, (void*)&data);
-	createTrackbar("Uniquess ratio", "trackbars", &uniquenessRatio, 100, callback, (void*)&data);
-	createTrackbar("Speckle win size", "trackbars", &speckleWindowSize, 200, callback, (void*)&data);
-	createTrackbar("Speckle range", "trackbars", &speckleRange, 100, callback, (void*)&data);
-	createTrackbar("Disp12MaxDiff", "trackbars", &disp12MaxDiff, 100, callback, (void*)&data);
-
-
-	callback(0, (void*)&data);
-
-	waitKey(0);
-
-	destroyWindow("disparity");
-	destroyWindow("trackbars");
+	namedWindow("trackbars");
+	createTrackbar("Min Disparity", "trackbars", &stereoSGBMParams.minDisparity, 100, callbackSGBM, (void*)&data);
+	createTrackbar("Num Disparties", "trackbars", &stereoSGBMParams.numDisparities, 100, callbackSGBM, (void*)&data);
+	createTrackbar("SAD Window Size", "trackbars", &stereoSGBMParams.SADWindowSize, 20, callbackSGBM, (void*)&data);
+	createTrackbar("P1", "trackbars", &stereoSGBMParams.p1, 3000, callbackSGBM, (void*)&data);
+	createTrackbar("P2", "trackbars", &stereoSGBMParams.p2, 3000, callbackSGBM, (void*)&data);
+	createTrackbar("Disp12MaxDiff", "trackbars", &stereoSGBMParams.disp12MaxDiff, 100, callbackSGBM, (void*)&data);
+	createTrackbar("preFilterCap", "trackbars", &stereoSGBMParams.preFilterCap, 100, callbackSGBM, (void*)&data);
+	createTrackbar("Uniqueness Ratio", "trackbars", &stereoSGBMParams.uniquenessRatio, 100, callbackSGBM, (void*)&data);
+	createTrackbar("Speckle Win Size", "trackbars", &stereoSGBMParams.speckleWindowSize, 200, callbackSGBM, (void*)&data);
+	createTrackbar("Speckle Range", "trackbars", &stereoSGBMParams.speckleRange, 10, callbackSGBM, (void*)&data);
+}
+void displayTrackbarsBM(CallbackData& data)
+{
+	namedWindow("trackbars");
+	createTrackbar("Block size", "trackbars", &stereoBMParams.blockSize, 100, callbackBM, (void*)&data);
+	createTrackbar("Num Disparties", "trackbars", &stereoBMParams.numDisparities, 100, callbackBM, (void*)&data);
+	createTrackbar("Pre filter size", "trackbars", &stereoBMParams.preFilterSize, 100, callbackBM, (void*)&data);
+	createTrackbar("Pre filter cap", "trackbars", &stereoBMParams.preFilterCap, 63, callbackBM, (void*)&data);
+	createTrackbar("Min disparity", "trackbars", &stereoBMParams.minDisparity, 100, callbackBM, (void*)&data);
+	createTrackbar("Texture threshold", "trackbars", &stereoBMParams.textureThreshold, 5000, callbackBM, (void*)&data);
+	createTrackbar("Uniquess ratio", "trackbars", &stereoBMParams.uniquenessRatio, 100, callbackBM, (void*)&data);
+	createTrackbar("Speckle win size", "trackbars", &stereoBMParams.speckleWindowSize, 200, callbackBM, (void*)&data);
+	createTrackbar("Speckle range", "trackbars", &stereoBMParams.speckleRange, 100, callbackBM, (void*)&data);
+	createTrackbar("Disp12MaxDiff", "trackbars", &stereoBMParams.disp12MaxDiff, 100, callbackBM, (void*)&data);
 }
 
-void callback(int wtf, void* data)
+void callbackSGBM(int wtf, void* data)
 {
 	CallbackData cData = *(CallbackData*)data;
 
-	if (numDisparities % 16 != 0)
-		numDisparities -= numDisparities % 16;
-	if (numDisparities < 16)numDisparities = 16;
+	//Ограничения на параметры
+	if (stereoSGBMParams.numDisparities % 16 != 0)
+		stereoSGBMParams.numDisparities -= stereoSGBMParams.numDisparities % 16;
+	if (stereoSGBMParams.numDisparities < 16)stereoSGBMParams.numDisparities = 16;
 
-	if (preFilterCap % 2 == 0)preFilterCap++;
+	if (stereoSGBMParams.preFilterCap % 2 == 0)stereoSGBMParams.preFilterCap++;
 
-	if (blockSize % 2 == 0)blockSize++;
-	if (blockSize < 5)blockSize = 5;
-
-	if (preFilterSize % 2 == 0)preFilterSize++;
-	if (preFilterSize < 5)preFilterSize = 5;
-
-	Ptr<StereoBM> sbm = cv::StereoBM::create(numDisparities, blockSize);
-	sbm->setPreFilterSize(preFilterSize);
-	sbm->setPreFilterCap(preFilterCap); //Что - то нечетное, влияния не заметил
-	sbm->setMinDisparity(minDisparity); //Меньше - разбитое фото, больше - темное (изменения сглаживаются)
-	sbm->setTextureThreshold(textureThreshold); //Порог текстуры (> = появляются черные пятна, < пятен нет, но детализация уменьшается)
-	sbm->setUniquenessRatio(uniquenessRatio); //Влияет на контуры (> четче)
-	sbm->setSpeckleWindowSize(speckleWindowSize); //Жесть какая - то
-	sbm->setSpeckleRange(speckleRange);
-	sbm->setDisp12MaxDiff(disp12MaxDiff);
-
-	cData.sv.SetStereoMatcher(sbm);
-
-	/*Ptr<StereoSGBM> sgbm = StereoSGBM::create(minDisparity, numDisparities, SADWindowSize);
-	sgbm->setPreFilterCap(preFilterCap);
-	sgbm->setP1(p1);
-	sgbm->setP2(p2);
-	sgbm->setDisp12MaxDiff(disp12MaxDiff-1);
-	sgbm->setUniquenessRatio(uniquenessRatio);
-	sgbm->setSpeckleWindowSize(speckleWindowSize);
-	sgbm->setSpeckleRange(speckleRange);
+	Ptr<StereoSGBM> sgbm = StereoSGBM::create(stereoSGBMParams.minDisparity, stereoSGBMParams.numDisparities, stereoSGBMParams.SADWindowSize);
+	sgbm->setPreFilterCap(stereoSGBMParams.preFilterCap);
+	sgbm->setP1(stereoSGBMParams.p1);
+	sgbm->setP2(stereoSGBMParams.p2);
+	sgbm->setDisp12MaxDiff(stereoSGBMParams.disp12MaxDiff - 1);
+	sgbm->setUniquenessRatio(stereoSGBMParams.uniquenessRatio);
+	sgbm->setSpeckleWindowSize(stereoSGBMParams.speckleWindowSize);
+	sgbm->setSpeckleRange(stereoSGBMParams.speckleRange);
 	//sgbm->setMode(cv::StereoSGBM::MODE_SGBM); // : StereoSGBM::MODE_HH*/
 	
+	cData.sv.SetStereoMatcher(sgbm);
 	cData.sv.CalculatePointCloud(cData.left, cData.right);
-
 }
 
+void callbackBM(int wtf, void* data)
+{
+	CallbackData cData = *(CallbackData*)data;
 
+	//Ограничения на параметры
+	if (stereoBMParams.numDisparities % 16 != 0)
+		stereoBMParams.numDisparities -= stereoBMParams.numDisparities % 16;
+	if (stereoBMParams.numDisparities < 16)stereoBMParams.numDisparities = 16;
+
+	if (stereoBMParams.preFilterCap % 2 == 0)stereoBMParams.preFilterCap++;
+
+	if (stereoBMParams.blockSize % 2 == 0)stereoBMParams.blockSize++;
+	if (stereoBMParams.blockSize < 5)stereoBMParams.blockSize = 5;
+
+	if (stereoBMParams.preFilterSize % 2 == 0)stereoBMParams.preFilterSize++;
+	if (stereoBMParams.preFilterSize < 5)stereoBMParams.preFilterSize = 5;
+
+	Ptr<StereoBM> sbm = cv::StereoBM::create(stereoBMParams.numDisparities, stereoBMParams.blockSize);
+	sbm->setPreFilterSize(stereoBMParams.preFilterSize);				//Влиянеие не обнаружено
+	sbm->setPreFilterCap(stereoBMParams.preFilterCap);					//Что - то нечетное, уменьшает шумы
+	sbm->setMinDisparity(stereoBMParams.minDisparity);					//Меньше - разбитое фото, больше - темное (изменения сглаживаются)
+	sbm->setTextureThreshold(stereoBMParams.textureThreshold);			//Порог текстуры (> = появляются черные пятна, < пятен нет, но детализация уменьшается)
+	sbm->setUniquenessRatio(stereoBMParams.uniquenessRatio);			//Влияет на контуры (> четче)
+	sbm->setSpeckleWindowSize(stereoBMParams.speckleWindowSize);		//Жесть какая - то
+	sbm->setSpeckleRange(stereoBMParams.speckleRange);
+	sbm->setDisp12MaxDiff(stereoBMParams.disp12MaxDiff);				//Сглаживает шумы
+
+	cData.sv.SetStereoMatcher(sbm);
+	cData.sv.CalculatePointCloud(cData.left, cData.right);
+}
+
+//Отображение карты в режиме реального времени
 void disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
 {
 	Mat left, right;
