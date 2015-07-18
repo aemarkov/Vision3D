@@ -80,6 +80,7 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\PointCloudStorage.cpp" />
     <ClCompile Include="src\StaticHelpers.cpp" />
     <ClCompile Include="src\StereoCalibData.cpp" />
     <ClCompile Include="src\StereoVision.cpp" />

@@ -169,20 +169,39 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 * param[in] right - правое изображение с откалиброванной камеры
 * result - облако точек
 */
-PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const
+PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool disparityOnly) const
 {
 	cv::Mat leftRemaped, rightRemaped;
+	cv::Mat leftGrey, rightGrey;
 	cv::Mat disparity, normalDisparity;
+	cv::Mat cloud;
 
-	cv::remap(left, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
-	cv::remap(right, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+	if (left.channels() == 3)
+		cv::cvtColor(left, leftGrey, CV_RGB2GRAY);
+	else
+		leftGrey = left;
 
+	if (right.channels() == 3)
+		cv::cvtColor(right, rightGrey, CV_RGB2GRAY);
+	else
+		rightGrey = right;
+
+	cv::remap(leftGrey, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+	cv::remap(rightGrey, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
 	stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
 	cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);
 	cv::imshow("disparity", normalDisparity);
 
-	return PointCloudStorage();
+	if (!disparityOnly)
+	{
+		cv::reprojectImageTo3D(normalDisparity, cloud, calibData.Q, true);
+		return PointCloudStorage(cloud.clone());
+	}
+	else
+	{
+		return PointCloudStorage();
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

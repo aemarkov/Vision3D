@@ -96,7 +96,6 @@ int main(int argc, _TCHAR* argv[])
 		//sv.GetCalibData().Save("calib.yml");
 
 		//Захват изображений
-		aiming(cap1, cap2);
 		cap1 >> leftIm;
 		cap2 >> rightIm;
 
@@ -104,11 +103,18 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(leftIm, 0.5);
 		convertImage(rightIm, 0.5);
 
-		CallbackData data = CallbackData(sv, leftIm, rightIm);
-		displayTrackbarsBM(data);
-		callbackBM(0, &data);
+		auto data = CallbackData(sv, leftIm, rightIm);
+		//displayTrackbarsBM(data);
+		//callbackBM(0, &data);
+		displayTrackbarsSGBM(data);
+		callbackSGBM(0, &data);
 
 		disparityRealtime(cap1, cap2, sv);
+
+		//cap1 >> leftIm;
+		//cap2 >> rightIm;
+		auto cloud = sv.CalculatePointCloud(leftIm, rightIm);
+		cloud.SaveToObj("cloud.obj");
 	}
 
 	return 0;
@@ -274,7 +280,7 @@ void callbackBM(int wtf, void* data)
 	sbm->setDisp12MaxDiff(stereoBMParams.disp12MaxDiff);				//Сглаживает шумы
 
 	cData.sv.SetStereoMatcher(sbm);
-	cData.sv.CalculatePointCloud(cData.left, cData.right);
+	cData.sv.CalculatePointCloud(cData.left, cData.right, true);
 }
 
 //Отображение карты в режиме реального времени
@@ -290,7 +296,7 @@ void disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
 		convertImage(left, 0.5);
 		convertImage(right, 0.5);
 
-		sv.CalculatePointCloud(left, right);
+		sv.CalculatePointCloud(left, right, true);
 
 		if (waitKey(1) != -1)break;
 	}

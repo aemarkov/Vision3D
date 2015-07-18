@@ -55,7 +55,7 @@ public:
 	* param[in] right - правое изображение с откалиброванной камеры
 	* result - облако точек
 	*/
-	PointCloudStorage CalculatePointCloud(const cv::Mat& left, const cv::Mat& right) const;
+	PointCloudStorage CalculatePointCloud(const cv::Mat& left, const cv::Mat& right,  bool disparityOnly=false) const;
 
 	//Возвращает параметры калибровки
 	StereoCalibData GetCalibData();
