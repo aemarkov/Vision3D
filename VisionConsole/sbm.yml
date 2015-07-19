@@ -3,13 +3,13 @@ my_object:
    format: 3
    name: "StereoMatcher.BM"
    minDisparity: 0
-   numDisparities: 48
-   blockSize: 13
-   speckleWindowSize: 27
-   speckleRange: 44
-   disp12MaxDiff: 16
+   numDisparities: 80
+   blockSize: 15
+   speckleWindowSize: 145
+   speckleRange: 77
+   disp12MaxDiff: 10
    preFilterType: 1
    preFilterSize: 5
-   preFilterCap: 63
-   textureThreshold: 788
+   preFilterCap: 61
+   textureThreshold: 0
    uniquenessRatio: 0

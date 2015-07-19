@@ -91,20 +91,112 @@ void disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv);
 void loadBMSettings(StereoBMParams& params, const char* filename);
 void loadSGBMSettings(StereoSGBMParams& params, const char* filename);
 
+//Показать подсказки
+void displayHelp();
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, _TCHAR* argv[])
 {
-	StereoVision sv("calib.yml");
-	VideoCapture cap1(1), cap2(0);
+	if (argc < 5)
+	{
+		//Показать хелп
+		displayHelp();
+		return 0;
+	}
+
+	//Параметры, переданные пользователем
+	int leftCameraIndex=-1, rightCameraIndex=-1;		//Индексы левой и правой веб-камер
+	bool useStereoSGBM = false;							//Использовать StereoBM или StereoSGBM
+	string calibFilename, stereoFilename;				//Имена файлов настроек
+	bool isCalib = false, isStereoConfig = false;		//Используются ли файлы конфигурации
+
+	//Обработка параметров
+	int currentParam = 1;
+	while (currentParam < argc)
+	{
+		if (strcmp("-left", argv[currentParam]) == 0)
+		{
+			leftCameraIndex = atoi(argv[currentParam + 1]);
+			currentParam += 2;
+		}
+		else if (strcmp("-right", argv[currentParam]) == 0)
+		{
+			rightCameraIndex = atoi(argv[currentParam + 1]);
+			currentParam += 2;
+		}
+		else if (strcmp("-sbm", argv[currentParam]) == 0)
+		{
+			useStereoSGBM = false;
+			currentParam++;
+		}
+		else if (strcmp("-sgbm", argv[currentParam]) == 0)
+		{
+			useStereoSGBM = true;
+			currentParam++;
+		}
+		else if (strcmp("-calib", argv[currentParam])==0)
+		{
+			//calibFilename = new char[strlen(argv[currentParam + 1])+1];
+			//strcpy(calibFilename, argv[currentParam + 1]);
+			calibFilename = string(argv[currentParam + 1]);
+			currentParam += 2;
+			isCalib = true;
+		}
+		else if (strcmp("-stereoparam", argv[currentParam]) == 0)
+		{
+			//stereoFilename = new char[strlen(argv[currentParam + 1]) + 1];
+			//strcpy(stereoFilename, argv[currentParam + 1]);
+			stereoFilename = string(argv[currentParam + 1]);
+			currentParam += 2;
+			isStereoConfig = true;
+		}
+		else
+		{
+			cout << argv[currentParam] << " - invalid argument";
+			return 0;
+		}
+
+	}
+
+	if ((leftCameraIndex == -1) || (rightCameraIndex == -1))
+	{
+		cout << "ERROR: camera not set\n";
+		return 0;
+	}
+
+	StereoVision sv;
+	VideoCapture cap1(leftCameraIndex), cap2(rightCameraIndex);
 	Mat leftIm, rightIm;
 	Mat leftRes, rightRes;
+
+	//Загружаем конфиг калибровки
+	//!!
+	if (isCalib)
+	{
+		sv = StereoVision(calibFilename.c_str());
+	}
+
+	//Загружаем конфиг Stereo Matching'а
+	if (isStereoConfig)
+	{
+		loadBMSettings(stereoBMParams, stereoFilename.c_str());
+	}
 
 	while (true)
 	{
 		//Калибровка
-		//calibrate(cap1, cap2, sv, Size(9, 6));
-		//sv.GetCalibData().Save("calib.yml");
+		if (!isCalib)
+		{
+			int w, h;
+			cout << "Enter pattern size width, height: ";
+			cin >> w >> h;
+
+			calibrate(cap1, cap2, sv, Size(w, h));
+			cout << "Enter calibration config filename *.yml or *.xml: ";
+			cin >> calibFilename;
+			sv.GetCalibData().Save(calibFilename.c_str());
+		}
 
 		//Захват изображений
 		cap1 >> leftIm;
@@ -114,19 +206,25 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(leftIm, 0.5);
 		convertImage(rightIm, 0.5);
 		
-		loadBMSettings(stereoBMParams, "sbm.yml");
 		auto data = CallbackData(sv, leftIm, rightIm);
 
-		//StereoBM
-		displayTrackbarsBM(data);
-		callbackBM(0, &data);
+		if (!useStereoSGBM)
+		{
+			//StereoBM
+			displayTrackbarsBM(data);
+			callbackBM(0, &data);
+		}
+		else
+		{
+			//StereoSGBM
+			displayTrackbarsSGBM(data);
+			callbackSGBM(0, &data);
+		}
 
-		//StereoSGBM
-		//displayTrackbarsSGBM(data);
-		//callbackSGBM(0, &data);
-
+		//Показ карты различий в вреальном времени
 		disparityRealtime(cap1, cap2, sv);
 
+		//Созранение облака точек
 		cap1 >> leftIm;
 		cap2 >> rightIm;
 		resize(leftIm, leftRes, Size(0, 0), 0.5, 0.5);
@@ -135,10 +233,43 @@ int main(int argc, _TCHAR* argv[])
 		auto cloud = sv.CalculatePointCloud(leftRes, rightRes);
 		cloud.SaveToObj("cloud.obj");
 		
-		stereoBMParams.sbm->save("sbm.yml");
+		//Сохранение файла конфигурации
+		if (!isStereoConfig)
+		{
+			char answer;
+			cout << "Do you want to save config? (y\\n): ";
+			cin >> answer;
+			if (answer == 'y')
+			{
+				isStereoConfig = true;
+				cout << "Enter filename *.yml or *.xml: ";
+				cin >> stereoFilename;
+			}
+		}
+
+		if (isStereoConfig)
+		{
+			if (useStereoSGBM)
+				stereoSGBMParams.sgbm->save(stereoFilename);
+			else
+				stereoBMParams.sbm->save(stereoFilename);
+		}
 	}
 
 	return 0;
+}
+
+void displayHelp()
+{
+	cout << "Vision3D console application\n";
+	cout << "Usage:\n";
+	cout << "VisionConsole -left <left camera index> -right <right camera index> [-sbm|-sgbm] [-calib <calibration file name>] [-stereoparam <stereo matching settings file>]\n";
+	cout << " -left        - index of left webcamera\n";
+	cout << " -right       - index of right webcamera\n";
+	cout << " -sbm         - use StereoSB algorythm (default)\n";
+	cout << " -sgbm        - use StereoSGBM algorythm\n";
+	cout << " -calib       - filename with stereo calibration data\n";
+	cout << " -stereoparam - filename with stereo matching algorytm params";
 }
 
 //Выводимт видео-поток с камер
@@ -351,8 +482,8 @@ void loadBMSettings(StereoBMParams& params, const char* filename)
 
 void loadSGBMSettings(StereoSGBMParams& params, const char* filename)
 {
-	auto sgbm = params.sgbm;
-	sgbm = StereoSGBM::load<StereoSGBM>(filename);
+	/*auto sgbm = params.sgbm;
+	sgbm = Algorithm::load<StereoSGBM>(filename);
 	params.disp12MaxDiff = sgbm->getDisp12MaxDiff();
 	params.minDisparity = sgbm->getMinDisparity();
 	params.numDisparities = sgbm->getNumDisparities();
@@ -362,5 +493,5 @@ void loadSGBMSettings(StereoSGBMParams& params, const char* filename)
 	params.SADWindowSize = sgbm->getBlockSize();	//??
 	params.speckleRange = sgbm->getSpeckleRange();
 	params.speckleWindowSize = sgbm->getSpeckleWindowSize();
-	params.uniquenessRatio = sgbm->getUniquenessRatio();
+	params.uniquenessRatio = sgbm->getUniquenessRatio();*/
 }

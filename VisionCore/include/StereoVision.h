@@ -79,6 +79,8 @@ public:
 	//Задает объект StereoBM
 	void SetStereoMatcher(cv::Ptr<cv::StereoMatcher> stereoMatcher);
 
+	StereoVision& operator=(const StereoVision& ohter);
+
 private:
 
 	StereoCalibData calibData;						//Калибровочные данные

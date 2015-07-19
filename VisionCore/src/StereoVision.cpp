@@ -214,6 +214,7 @@ PointCloudStorage StereoVision::_calculatePointCloud(const cv::Mat& left, const 
 	cv::remap(rightGrey, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
 
 	//Строим карту различий
+	//Надо передавать изображения наоброт. ХЗ зачем
 	stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
 	cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);
 	
@@ -261,6 +262,17 @@ cv::Ptr<cv::StereoMatcher> StereoVision::GetStereoMatcher()
 void StereoVision::SetStereoMatcher(cv::Ptr<cv::StereoMatcher> stereoMatcher)
 {
 	this->stereoMatcher = stereoMatcher;
+}
+
+StereoVision& StereoVision::operator=(const StereoVision& other)
+{
+	if (&other != this)
+	{
+		this->calibData = other.calibData;
+		this->stereoMatcher = other.stereoMatcher;
+	}
+
+	return *this;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

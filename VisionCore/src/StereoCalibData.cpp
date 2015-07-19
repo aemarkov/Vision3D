@@ -52,6 +52,10 @@ void StereoCalibData::_copyToThis(const StereoCalibData& other)
 	this->RightCameraRectifiedProjection = other.RightCameraRectifiedProjection;
 	this->LeftCameraRot = other.LeftCameraRot;
 	this->RightCameraRot = other.RightCameraRot;
+	this->LeftMapX = other.LeftMapX;
+	this->LeftMapY = other.LeftMapY;
+	this->RightMapX = other.RightMapX;
+	this->RightMapY = other.RightMapY;
 	this->Q = other.Q;
 }
 
@@ -70,6 +74,11 @@ StereoCalibData& StereoCalibData::Clone()
 	data.LeftCameraRot = this->LeftCameraRot;
 	data.RightCameraRot = this->RightCameraRot;
 	data.Q = this->Q.clone();
+	data.LeftMapX = this->LeftMapX;
+	data.LeftMapY = this->LeftMapY;
+	data.RightMapX = this->RightMapX;
+	data.RightMapY = this->RightMapY;
+
 
 	return data;
 }
