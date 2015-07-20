@@ -20,6 +20,7 @@
 using namespace cv;
 using namespace std;
 
+#define IMAGE_SCALE 1
 
 //Паараметры для StereoSGBM
 struct StereoSGBMParams
@@ -85,7 +86,7 @@ void convertImage(Mat& image, float scale);
 void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize);
 
 //Вывод карты различий в реальном времени
-void disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv);
+bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv);
 
 
 void loadBMSettings(StereoBMParams& params, const char* filename);
@@ -110,6 +111,7 @@ int main(int argc, _TCHAR* argv[])
 	bool useStereoSGBM = false;							//Использовать StereoBM или StereoSGBM
 	string calibFilename, stereoFilename;				//Имена файлов настроек
 	bool isCalib = false, isStereoConfig = false;		//Используются ли файлы конфигурации
+	bool isRealtime = true;							//Показывать ли карту глубины в реальном времени
 
 	//Обработка параметров
 	int currentParam = 1;
@@ -137,16 +139,12 @@ int main(int argc, _TCHAR* argv[])
 		}
 		else if (strcmp("-calib", argv[currentParam])==0)
 		{
-			//calibFilename = new char[strlen(argv[currentParam + 1])+1];
-			//strcpy(calibFilename, argv[currentParam + 1]);
 			calibFilename = string(argv[currentParam + 1]);
 			currentParam += 2;
 			isCalib = true;
 		}
 		else if (strcmp("-stereoparam", argv[currentParam]) == 0)
 		{
-			//stereoFilename = new char[strlen(argv[currentParam + 1]) + 1];
-			//strcpy(stereoFilename, argv[currentParam + 1]);
 			stereoFilename = string(argv[currentParam + 1]);
 			currentParam += 2;
 			isStereoConfig = true;
@@ -159,16 +157,16 @@ int main(int argc, _TCHAR* argv[])
 
 	}
 
+	//Проверяем, что камеры указаны
 	if ((leftCameraIndex == -1) || (rightCameraIndex == -1))
 	{
 		cout << "ERROR: camera not set\n";
 		return 0;
 	}
 
-	StereoVision sv;
-	VideoCapture cap1(leftCameraIndex), cap2(rightCameraIndex);
-	Mat leftIm, rightIm;
-	Mat leftRes, rightRes;
+	StereoVision sv;												//Отвечат за калибровку и построение облака точек
+	VideoCapture cap1(leftCameraIndex), cap2(rightCameraIndex);		//Веб-камеры
+	Mat leftIm, rightIm;											//Изображения с камеры
 
 	//Загружаем конфиг калибровки
 	//!!
@@ -176,84 +174,118 @@ int main(int argc, _TCHAR* argv[])
 	{
 		sv = StereoVision(calibFilename.c_str());
 	}
+	else
+	{
+		//Калибровка
+		int w, h;
+		cout << "Enter pattern size width, height: ";
+		cin >> w >> h;
+
+		calibrate(cap1, cap2, sv, Size(w, h));
+
+		//TODO: показать результат
+
+		cout << "Enter calibration config filename *.yml or *.xml: ";
+		cin >> calibFilename;
+		sv.GetCalibData().Save(calibFilename.c_str());
+		
+	}
 
 	//Загружаем конфиг Stereo Matching'а
 	if (isStereoConfig)
 	{
-		loadBMSettings(stereoBMParams, stereoFilename.c_str());
+		if (!useStereoSGBM)
+			loadBMSettings(stereoBMParams, stereoFilename.c_str());
+		else
+			loadSGBMSettings(stereoSGBMParams, stereoFilename.c_str());
 	}
 
 	while (true)
 	{
-		//Калибровка
-		if (!isCalib)
-		{
-			int w, h;
-			cout << "Enter pattern size width, height: ";
-			cin >> w >> h;
-
-			calibrate(cap1, cap2, sv, Size(w, h));
-			cout << "Enter calibration config filename *.yml or *.xml: ";
-			cin >> calibFilename;
-			sv.GetCalibData().Save(calibFilename.c_str());
-		}
-
-		//Захват изображений
-		cap1 >> leftIm;
-		cap2 >> rightIm;
-
-		//Уменьшение и перевод в ч\б
-		convertImage(leftIm, 0.5);
-		convertImage(rightIm, 0.5);
-		
 		auto data = CallbackData(sv, leftIm, rightIm);
 
+		//Отображение ползунков
 		if (!useStereoSGBM)
 		{
 			//StereoBM
 			displayTrackbarsBM(data);
-			callbackBM(0, &data);
 		}
 		else
 		{
 			//StereoSGBM
 			displayTrackbarsSGBM(data);
-			callbackSGBM(0, &data);
 		}
 
-		//Показ карты различий в вреальном времени
-		disparityRealtime(cap1, cap2, sv);
+		//Получаем карту глубины
+		if (isRealtime)
+		{
+			//Захват изображений
+			cap1 >> leftIm;
+			cap2 >> rightIm;
+
+			//Уменьшение и перевод в ч\б
+			convertImage(leftIm, IMAGE_SCALE);
+			convertImage(rightIm, IMAGE_SCALE);
+
+			//Вызываем метод настройки и показа карты глубины
+			if (useStereoSGBM)
+				callbackSGBM(0, &data);
+			else
+				callbackBM(0, &data);
+
+			//Показ карты различий в вреальном времени
+			if (disparityRealtime(cap1, cap2, sv))break;
+		}
+		else
+		{
+			//Строим карту глубины по изображениям (не в реальном времени)
+			//Даем пользователю поставить объект в нужное место
+			aiming(cap1, cap2);
+
+			//Захват изображений
+			cap1 >> leftIm;
+			cap2 >> rightIm;
+
+			//Уменьшение и перевод в ч\б
+			convertImage(leftIm, IMAGE_SCALE);
+			convertImage(rightIm, IMAGE_SCALE);
+
+			//Вызываем метод настройки и показа карты глубины
+			if (useStereoSGBM)
+				callbackSGBM(0, &data);
+			else
+				callbackBM(0, &data);
+
+			if (waitKey(0) == 27)break;
+		}
 
 		//Созранение облака точек
 		cap1 >> leftIm;
 		cap2 >> rightIm;
-		resize(leftIm, leftRes, Size(0, 0), 0.5, 0.5);
-		resize(rightIm, rightRes, Size(0, 0), 0.5, 0.5);
+		auto cloud = sv.CalculatePointCloud(leftIm, rightIm);
+		cloud.SaveToObj("cloud.obj");	
+	}
 
-		auto cloud = sv.CalculatePointCloud(leftRes, rightRes);
-		cloud.SaveToObj("cloud.obj");
-		
-		//Сохранение файла конфигурации
-		if (!isStereoConfig)
+	//Сохранение файла конфигурации
+	if (!isStereoConfig)
+	{
+		char answer;
+		cout << "Do you want to save config? (y\\n): ";
+		cin >> answer;
+		if (answer == 'y')
 		{
-			char answer;
-			cout << "Do you want to save config? (y\\n): ";
-			cin >> answer;
-			if (answer == 'y')
-			{
-				isStereoConfig = true;
-				cout << "Enter filename *.yml or *.xml: ";
-				cin >> stereoFilename;
-			}
+			isStereoConfig = true;
+			cout << "Enter filename *.yml or *.xml: ";
+			cin >> stereoFilename;
 		}
+	}
 
-		if (isStereoConfig)
-		{
-			if (useStereoSGBM)
-				stereoSGBMParams.sgbm->save(stereoFilename);
-			else
-				stereoBMParams.sbm->save(stereoFilename);
-		}
+	if (isStereoConfig)
+	{
+		if (useStereoSGBM)
+			stereoSGBMParams.sgbm->save(stereoFilename);
+		else
+			stereoBMParams.sbm->save(stereoFilename);
 	}
 
 	return 0;
@@ -286,8 +318,8 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 
 		//Переворачиваем, потому что мои камеры дают изображения
 		//горизонтально отраженное
-		flip(img1, img1Flip, 1);
-		flip(img2, img2Flip, 1);
+		flip(img1, img1Flip, IMAGE_SCALE);
+		flip(img2, img2Flip, IMAGE_SCALE);
 		
 		//Совмещаем два изображения рядом
 		img = Mat(img1Flip.rows, img1Flip.cols + img2Flip.cols, CV_8UC3);
@@ -334,8 +366,8 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 		cap2 >> rightIm;
 
 		//Уменьшение и перевод в ч\б
-		convertImage(leftIm, 0.5);
-		convertImage(rightIm, 0.5);
+		convertImage(leftIm, IMAGE_SCALE);
+		convertImage(rightIm, IMAGE_SCALE);
 		
 		//Добавляем в векторы
 		left.push_back(leftIm.clone());
@@ -354,7 +386,7 @@ void displayTrackbarsSGBM(CallbackData& data)
 {
 	namedWindow("trackbars");
 	createTrackbar("Min Disparity", "trackbars", &stereoSGBMParams.minDisparity, 100, callbackSGBM, (void*)&data);
-	createTrackbar("Num Disparties", "trackbars", &stereoSGBMParams.numDisparities, 100, callbackSGBM, (void*)&data);
+	createTrackbar("Num Disparties", "trackbars", &stereoSGBMParams.numDisparities, 200, callbackSGBM, (void*)&data);
 	createTrackbar("SAD Window Size", "trackbars", &stereoSGBMParams.SADWindowSize, 20, callbackSGBM, (void*)&data);
 	createTrackbar("P1", "trackbars", &stereoSGBMParams.p1, 3000, callbackSGBM, (void*)&data);
 	createTrackbar("P2", "trackbars", &stereoSGBMParams.p2, 3000, callbackSGBM, (void*)&data);
@@ -368,11 +400,11 @@ void displayTrackbarsBM(CallbackData& data)
 {
 	namedWindow("trackbars");
 	createTrackbar("Block size", "trackbars", &stereoBMParams.blockSize, 100, callbackBM, (void*)&data);
-	createTrackbar("Num Disparties", "trackbars", &stereoBMParams.numDisparities, 100, callbackBM, (void*)&data);
+	createTrackbar("Num Disparties", "trackbars", &stereoBMParams.numDisparities, 200, callbackBM, (void*)&data);
 	createTrackbar("Pre filter size", "trackbars", &stereoBMParams.preFilterSize, 100, callbackBM, (void*)&data);
 	createTrackbar("Pre filter cap", "trackbars", &stereoBMParams.preFilterCap, 63, callbackBM, (void*)&data);
 	createTrackbar("Min disparity", "trackbars", &stereoBMParams.minDisparity, 100, callbackBM, (void*)&data);
-	createTrackbar("Texture threshold", "trackbars", &stereoBMParams.textureThreshold, 5000, callbackBM, (void*)&data);
+	createTrackbar("Texture threshold", "trackbars", &stereoBMParams.textureThreshold, 200, callbackBM, (void*)&data);
 	createTrackbar("Uniquess ratio", "trackbars", &stereoBMParams.uniquenessRatio, 100, callbackBM, (void*)&data);
 	createTrackbar("Speckle win size", "trackbars", &stereoBMParams.speckleWindowSize, 200, callbackBM, (void*)&data);
 	createTrackbar("Speckle range", "trackbars", &stereoBMParams.speckleRange, 100, callbackBM, (void*)&data);
@@ -404,8 +436,11 @@ void callbackSGBM(int wtf, void* data)
 	stereoSGBMParams.sgbm->setSpeckleRange(stereoSGBMParams.speckleRange);
 	//sgbm->setMode(cv::StereoSGBM::MODE_SGBM); // : StereoSGBM::MODE_HH*/
 	
+	//Расчет карты глубины и показ ее
+	Mat disparity;
 	cData.sv.SetStereoMatcher(stereoSGBMParams.sgbm);
-	//cData.sv.CalculatePointCloud(cData.left, cData.right);
+	cData.sv.CalculatePointCloud(cData.left, cData.right, disparity, true);
+	imshow("disparity", disparity);
 }
 
 void callbackBM(int wtf, void* data)
@@ -436,28 +471,35 @@ void callbackBM(int wtf, void* data)
 	stereoBMParams.sbm->setSpeckleRange(stereoBMParams.speckleRange);
 	stereoBMParams.sbm->setDisp12MaxDiff(stereoBMParams.disp12MaxDiff);				//Сглаживает шумы
 
+	//Расчет карты глубины и показ ее
+	Mat disparity;
 	cData.sv.SetStereoMatcher(stereoBMParams.sbm);
-	//cData.sv.CalculatePointCloud(cData.left, cData.right, true);
+	cData.sv.CalculatePointCloud(cData.left, cData.right, disparity, true);
+	imshow("disparity",disparity);
 }
 
+
 //Отображение карты в режиме реального времени
-void disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
+bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
 {
 	Mat left, right, disparity;
+	int keyCode;
 
 	while (true)
 	{
 		cap1 >> left;
 		cap2 >> right;
 
-		convertImage(left, 0.5);
-		convertImage(right, 0.5);
+		convertImage(left, IMAGE_SCALE);
+		convertImage(right, IMAGE_SCALE);
 
 		sv.CalculatePointCloud(left, right, disparity, true);
 		imshow("disparity", disparity);
 
-		if (waitKey(1) != -1)break;
+		keyCode = waitKey(1);
+		if (keyCode != -1)break;
 	}
+	return keyCode == 27;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
