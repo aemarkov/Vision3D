@@ -80,12 +80,16 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\BaseObject3D.cpp" />
     <ClCompile Include="src\PointCloudStorage.cpp" />
     <ClCompile Include="src\StaticHelpers.cpp" />
     <ClCompile Include="src\StereoCalibData.cpp" />
     <ClCompile Include="src\StereoVision.cpp" />
+    <ClCompile Include="src\Object3D.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\BaseObject3D.h" />
+    <ClInclude Include="include\Object3D.h" />
     <ClInclude Include="include\PointCloudStorage.h" />
     <ClInclude Include="include\StaticHelpers.h" />
     <ClInclude Include="include\StereoCalibData.h" />

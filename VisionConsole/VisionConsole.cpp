@@ -20,7 +20,7 @@
 using namespace cv;
 using namespace std;
 
-#define IMAGE_SCALE 1
+#define IMAGE_SCALE 0.5
 
 //Паараметры для StereoSGBM
 struct StereoSGBMParams
@@ -56,6 +56,8 @@ struct StereoBMParams
 
 	Ptr<StereoBM> sbm;
 } stereoBMParams;
+
+int maxDist = 1;
 
 //Структура для передачи данных в обработчики событий
 struct CallbackData
@@ -262,8 +264,18 @@ int main(int argc, _TCHAR* argv[])
 		//Созранение облака точек
 		cap1 >> leftIm;
 		cap2 >> rightIm;
-		auto cloud = sv.CalculatePointCloud(leftIm, rightIm);
-		cloud.SaveToObj("cloud.obj");	
+		convertImage(leftIm, IMAGE_SCALE);
+		convertImage(rightIm, IMAGE_SCALE);
+
+		PointCloudStorage* cloud = sv.CalculatePointCloud(leftIm, rightIm);
+		
+		while (true)
+		{
+			cloud->SeparateObjects(maxDist/10.0);
+			if (waitKey(10) != -1)break;
+		}
+
+		if (waitKey(0) == 27)break;
 	}
 
 	//Сохранение файла конфигурации
@@ -318,8 +330,8 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 
 		//Переворачиваем, потому что мои камеры дают изображения
 		//горизонтально отраженное
-		flip(img1, img1Flip, IMAGE_SCALE);
-		flip(img2, img2Flip, IMAGE_SCALE);
+		flip(img1, img1Flip, 1);
+		flip(img2, img2Flip, 1);
 		
 		//Совмещаем два изображения рядом
 		img = Mat(img1Flip.rows, img1Flip.cols + img2Flip.cols, CV_8UC3);
@@ -400,15 +412,17 @@ void displayTrackbarsBM(CallbackData& data)
 {
 	namedWindow("trackbars");
 	createTrackbar("Block size", "trackbars", &stereoBMParams.blockSize, 100, callbackBM, (void*)&data);
-	createTrackbar("Num Disparties", "trackbars", &stereoBMParams.numDisparities, 200, callbackBM, (void*)&data);
+	createTrackbar("Num Disparties", "trackbars", &stereoBMParams.numDisparities, 300, callbackBM, (void*)&data);
 	createTrackbar("Pre filter size", "trackbars", &stereoBMParams.preFilterSize, 100, callbackBM, (void*)&data);
 	createTrackbar("Pre filter cap", "trackbars", &stereoBMParams.preFilterCap, 63, callbackBM, (void*)&data);
 	createTrackbar("Min disparity", "trackbars", &stereoBMParams.minDisparity, 100, callbackBM, (void*)&data);
-	createTrackbar("Texture threshold", "trackbars", &stereoBMParams.textureThreshold, 200, callbackBM, (void*)&data);
+	createTrackbar("Texture threshold", "trackbars", &stereoBMParams.textureThreshold, 5000, callbackBM, (void*)&data);
 	createTrackbar("Uniquess ratio", "trackbars", &stereoBMParams.uniquenessRatio, 100, callbackBM, (void*)&data);
 	createTrackbar("Speckle win size", "trackbars", &stereoBMParams.speckleWindowSize, 200, callbackBM, (void*)&data);
 	createTrackbar("Speckle range", "trackbars", &stereoBMParams.speckleRange, 100, callbackBM, (void*)&data);
 	createTrackbar("Disp12MaxDiff", "trackbars", &stereoBMParams.disp12MaxDiff, 100, callbackBM, (void*)&data);
+
+	createTrackbar("Max dist", "trackbars", &maxDist, 100, NULL, NULL);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -27,6 +27,7 @@
 #include "StereoCalibData.h"
 #include "PointCloudStorage.h"
 #include "StaticHelpers.h"
+#include <omp.h>
 
 class StereoVision
 {
@@ -57,7 +58,7 @@ public:
 	* param[in] disparityOnly - строить карту глубины без облака точек
 	* result - облако точек
 	*/
-	PointCloudStorage CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Mat& disparity, bool disparityOnly = false) const;
+	PointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Mat& disparity, bool disparityOnly = false) const;
 
 	/* Построение облака точек по двум изображениям
 	* param[in] left - левое изображение с откалиброванной камеры
@@ -65,7 +66,7 @@ public:
 	* param[in] disparityOnly - строить карту глубины без облака точек
 	* result - облако точек
 	*/
-	PointCloudStorage CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool disparityOnly = false) const;
+	PointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool disparityOnly = false) const;
 
 	//Возвращает параметры калибровки
 	StereoCalibData GetCalibData();
@@ -95,7 +96,7 @@ private:
 
 	//Строит облако точек
 	//Соответствующие публичные методы - обертка вокруг него, для красоты
-	PointCloudStorage _calculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool noDisparityOut, cv::Mat& disparity, bool disparityOnly = false) const;
+	PointCloudStorage* _calculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool noDisparityOut, cv::Mat& disparity, bool disparityOnly = false) const;
 };
 
 #endif

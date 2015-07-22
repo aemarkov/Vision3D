@@ -171,7 +171,7 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 * param[in] disparityOnly - строить карту глубины без облака точек
 * result - облако точек
 */
-PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Mat& disparity, bool disparityOnly) const
+PointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Mat& disparity, bool disparityOnly) const
 {
 	return _calculatePointCloud(left, right, false, disparity, disparityOnly);
 }
@@ -182,7 +182,7 @@ PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const c
 * param[in] disparityOnly - строить карту глубины без облака точек
 * result - облако точек
 */
-PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool disparityOnly) const
+PointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool disparityOnly) const
 {
 	cv::Mat mat;
 	return _calculatePointCloud(left, right, true, mat, disparityOnly);
@@ -190,7 +190,7 @@ PointCloudStorage StereoVision::CalculatePointCloud(const cv::Mat& left, const c
 
 //Строит облако точек
 //Соответствующие публичные методы - обертка вокруг него, для красоты
-PointCloudStorage StereoVision::_calculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const
+PointCloudStorage* StereoVision::_calculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const
 {
 	cv::Mat leftRemaped, rightRemaped;
 	cv::Mat leftGrey, rightGrey;
@@ -215,7 +215,9 @@ PointCloudStorage StereoVision::_calculatePointCloud(const cv::Mat& left, const 
 
 	//Строим карту различий
 	//Надо передавать изображения наоброт. ХЗ зачем
+#pragma omp parallel
 	stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
+
 	cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);
 	
 	if (!noDisparityOut)
@@ -227,12 +229,12 @@ PointCloudStorage StereoVision::_calculatePointCloud(const cv::Mat& left, const 
 	{
 		//Создаем облако точек
 		cv::reprojectImageTo3D(normalDisparity, cloud, calibData.Q, true);
-		return PointCloudStorage(cloud.clone());
+		return new PointCloudStorage(cloud.clone());
 	}
 	else
 	{
 		//Не создаем облако точек
-		return PointCloudStorage();
+		return NULL;
 	}
 }
 
