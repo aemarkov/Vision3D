@@ -268,10 +268,10 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(rightIm, IMAGE_SCALE);
 
 		
-		
+		PointCloudStorage* cloud;
 		while (true)
 		{
-			PointCloudStorage* cloud = sv.CalculatePointCloud(leftIm, rightIm);
+			cloud = sv.CalculatePointCloud(leftIm, rightIm);
 			cloud->SeparateObjects(maxDist / 10.0);
 			if (waitKey(1) != -1)break;
 			//delete cloud;
@@ -279,7 +279,7 @@ int main(int argc, _TCHAR* argv[])
 
 
 
-		//cloud->SaveToObj("cloud_0.obj",0);
+		cloud->SaveToObj("cloud_0.obj",0);
 		//cloud->SaveToObj("cloud_1.obj", 10);
 
 		if (waitKey(0) == 27)break;

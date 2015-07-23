@@ -22,7 +22,10 @@ PointCloudStorage::PointCloudStorage(cv::Mat cloud)
 		{
 			cv::Vec3f point = cloud.at<cv::Vec3f>(i, j);
 			if (!isinf(point[0]) && !isinf(point[1]) && !isinf(point[2]))
+			{
 				_children.childrenArray[i][j] = new BaseObject3D(cloud.at<cv::Vec3f>(i, j), this);
+				_childrenList.push_back(_children.childrenArray[i][j]);
+			}
 			else
 				_children.childrenArray[i][j] = NULL;
 		}
@@ -83,6 +86,8 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 			visited[i][j] = false;
 		}
 	}
+
+	_childrenList.clear();
 
 	//3. Выполняем разбивку
 	for (int i = 0; i < _children.height; i++)
@@ -149,8 +154,6 @@ void PointCloudStorage::_findNearbyChildren(int row, int col, Children children,
 	visited[row][col] = true;
 
 	img.at<cv::Scalar>(row, col) = color;
-	//cv::imshow("wtf", img);
-	//cv::waitKey(1);
 
 	//Определяем объекты с 4х сторон от текущего
 	if (row > 0)
@@ -200,7 +203,7 @@ void _saveFromObject(Object3D* object, std::ofstream& stream)
 			else
 			{
 				cv::Vec3f point = curObject->GetCoord();
-				stream << "v " << point[0] << point[1] << point[2];
+				stream << "v " << point[0] << " " << point[1] << " " << point[2] << "\n";
 			}
 		}
 	}
@@ -218,7 +221,7 @@ void PointCloudStorage::SaveToObj(const char* filename, int minCount) const
 			if (obj->GetType() == Object3DType::TYPE_POINT)
 			{
 				cv::Vec3f point = obj->GetCoord();
-				stream << "v " << point[0] << point[1] << point[2];
+				stream << "v " << point[0] << " " << point[1] << " " << point[2] << "\n";
 			}
 			else if (dynamic_cast<Object3D*>(obj)->ChildrenCount()>minCount)
 				_saveFromObject((Object3D*)obj, stream);
