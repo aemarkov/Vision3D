@@ -39,10 +39,17 @@ public:
 	//Сохраняет все в файл obj
 	void SaveToObj(const char* filename, int minCount) const;
 
-	//Возвращает тип
-	Object3DType GetType();
-
+	//Разделяет объекты в группы - добавляет еще один уровень иеархии
 	void SeparateObjects(float maxDist);
+
+	//Возвращает тип
+	Object3DType GetType() const;
+
+	//Возращает число потомков
+	int ChildrenCount() const;
+
+	//Возвращает потомка
+	BaseObject3D* GetChild(int index) const;
 
 private:
 	
@@ -62,7 +69,7 @@ private:
 
 	std::vector<BaseObject3D*> _childrenList;
 
-	void _findNearbyChildren(int row, int col,Children  children, BaseObject3D*** tempArr, bool** visited, float MaxDist, Object3D* newParent, cv::Mat img, cv::Scalar color);
+	void _saveFromObject(Object3D* object, std::ofstream& stream) const;
 };
 
 #endif

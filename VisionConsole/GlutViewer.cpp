@@ -1,16 +1,29 @@
 ﻿#include "GlutViewer.h"
 
 //Конструктор
-GlutViewer::GlutViewer(int argc, char** argv)
+GlutViewer::GlutViewer(int argc, char** argv, PointCloudStorage* cloud)
 {
 	rotX = 0;
 	rotY = 0;
 	rotZ = 0;
+	posX = 0;
+	posY = 0;
+	posZ = 0;
 	scale = 1;
+
+	this->cloud = cloud;
 
 	//Запуск потока
 	renderThread = std::thread(threadFunctionWrapper, argc, argv, this);
 	renderThread.detach();
+}
+
+void GlutViewer::UpdateGeometry(PointCloudStorage* cloud)
+{
+	if (cloud != NULL)
+		this->cloud = cloud;
+
+	renderScene();
 }
 
 //Статическая функция-обертка над потоком
@@ -48,28 +61,60 @@ void GlutViewer::renderSceneWrapper(void)
 
 //Функция рендера
 void GlutViewer::renderScene() {
+	
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity();
+	glPushMatrix();
 
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	if (cloud == NULL)return;
 
-		glLoadIdentity();
-		glPushMatrix();
+	//Трансформации сцены
+	glRotated(rotX, 1, 0, 0);
+	glRotated(rotY, 0, 1, 0);
+	glRotated(rotZ, 0, 0, 1);
+	glTranslated(posX, posY, posZ);
+	glScaled(scale, scale, scale);
 
-		//Вращаем сцену
-		glRotated(rotX, 1, 0, 0);
-		glRotated(rotY, 0, 1, 0);
-		glRotated(rotZ, 0, 0, 1);
+	glBegin(GL_POINTS);
 
-		glScaled(scale, scale, scale);
+	//Отрисовываем модель
+	for (int i = 0; i < cloud->ChildrenCount(); i++)
+	{
+		BaseObject3D* object = cloud->GetChild(i);
+		if (object != NULL)
+		{
+			if (object->GetType() == BaseObject3D::TYPE_OBJECT)
+				renderObject(dynamic_cast<Object3D*>(object));
+			else if (object->GetType() == BaseObject3D::TYPE_POINT)
+			{
+				cv::Vec3f coord = object->GetCoord();
+				glVertex3f(coord[0]/5, coord[1]/5, coord[2]/5);
+			}
+		}
+	}
 
-		glBegin(GL_POINTS);
+	glEnd();
 
-		for (float i = -2; i <= 2; i += 0.5)
-			for (float j = -2; j <= 2; j += 0.5)
-				for (float k = -2; k <= 2; k += 0.5)
-					glVertex3f(i, j, k);
-		glEnd();
+	glutSwapBuffers();
+}
 
-		glutSwapBuffers();
+//Рекурсивный рендер объекта
+void GlutViewer::renderObject(Object3D* object)
+{
+	for (int i = 0; i < object->ChildrenCount(); i++)
+	{
+		BaseObject3D* curObject = object->GetChild(i);
+		if (curObject != NULL)
+		{
+			if (curObject->GetType() == BaseObject3D::TYPE_OBJECT)
+				renderObject(dynamic_cast<Object3D*>(curObject));
+			else
+			{
+				cv::Vec3f coord = curObject->GetCoord();
+				glVertex3f(coord[0]/5, coord[1]/5, coord[2]/5);
+			}
+		}
+	}
 }
 
 void GlutViewer::keyPressedWrapper(int key, int x, int y)
@@ -103,9 +148,17 @@ void GlutViewer::generalKeyPressed(int key, int x, int y)
 {
 	//this is '+' without shift
 	if (key == '=')
-		scale += 0.1;
+		scale += 0.01;
 	else if (key == '-')
-		scale -= 0.1;
+		scale -= 0.01;
+	else if (key == 'w')
+		posZ -= 0.1;
+	else if (key == 's')
+		posZ += 0.1;
+	else if (key == 'a')
+		posX -= 0.1;
+	else if (key == 'd')
+		posX += 0.1;
 
 	renderScene();
 }

@@ -29,19 +29,19 @@ void Object3D::AddChild(BaseObject3D* child)
 }
 
 //Возвращает тип объекта
-Object3D::Object3DType Object3D::GetType()
+Object3D::Object3DType Object3D::GetType() const
 {
 	return Object3DType::TYPE_OBJECT;
 }
 
 //Возращает число потомков
-int Object3D::ChildrenCount()
+int Object3D::ChildrenCount() const
 {
 	return _children.size();
 }
 
 //Возвращает потомка
-BaseObject3D* Object3D::GetChild(int index)
+BaseObject3D* Object3D::GetChild(int index) const
 {
 	return _children[index];
 }

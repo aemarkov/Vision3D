@@ -39,13 +39,13 @@ public:
 	void AddChild(BaseObject3D* child);
 
 	//Возращает число потомков
-	int ChildrenCount();
+	int ChildrenCount() const;
 
 	//Возвращает потомка
-	BaseObject3D* GetChild(int index);
+	BaseObject3D* GetChild(int index) const;
 
 	//Возвращает тип объекта
-	Object3DType GetType();
+	Object3DType GetType() const;
 
 protected:
 

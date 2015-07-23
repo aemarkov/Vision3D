@@ -1,13 +1,13 @@
-#include "PointCloudStorage.h"
+п»ї#include "PointCloudStorage.h"
 
 PointCloudStorage::PointCloudStorage()
 {
 	_children.childrenArray = NULL;
 }
 
-/* Создает облако точек на основе матриц c 3хмерными
-* координатами точек
-* param[in] cloud - облако точек, результат reprojectImageTo3d
+/* РЎРѕР·РґР°РµС‚ РѕР±Р»Р°РєРѕ С‚РѕС‡РµРє РЅР° РѕСЃРЅРѕРІРµ РјР°С‚СЂРёС† c 3С…РјРµСЂРЅС‹РјРё
+* РєРѕРѕСЂРґРёРЅР°С‚Р°РјРё С‚РѕС‡РµРє
+* param[in] cloud - РѕР±Р»Р°РєРѕ С‚РѕС‡РµРє, СЂРµР·СѓР»СЊС‚Р°С‚ reprojectImageTo3d
 */
 PointCloudStorage::PointCloudStorage(cv::Mat cloud)
 {
@@ -33,7 +33,7 @@ PointCloudStorage::PointCloudStorage(cv::Mat cloud)
 
 }
 
-//Удаляет объект
+//РЈРґР°Р»СЏРµС‚ РѕР±СЉРµРєС‚
 PointCloudStorage::~PointCloudStorage()
 {
 	for (int i = 0; i < _children.height; i++)
@@ -60,14 +60,14 @@ tempArr[i][j] = obj;
 
 */
 
-//Разбиение точек на объекты
+//Р Р°Р·Р±РёРµРЅРёРµ С‚РѕС‡РµРє РЅР° РѕР±СЉРµРєС‚С‹
 void PointCloudStorage::SeparateObjects(float maxDist)
 {
 	cv::Mat img = cv::Mat_<cv::Scalar>(_children.height, _children.width);
 	cv::Scalar lastColor(0, 0, 0);
 	_childrenList.clear();
 
-	//1. Выделяем новый массив под указатели на потомков
+	//1. Р’С‹РґРµР»СЏРµРј РЅРѕРІС‹Р№ РјР°СЃСЃРёРІ РїРѕРґ СѓРєР°Р·Р°С‚РµР»Рё РЅР° РїРѕС‚РѕРјРєРѕРІ
 	BaseObject3D*** tempArr = new BaseObject3D**[_children.height];
 	for (int i = 0; i < _children.height; i++)
 	{
@@ -76,8 +76,8 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 			tempArr[i][j] = NULL;
 	}
 
-	//2. Создаем матрицу размером с childrenArray, показывающую, посетили ли
-	//   мы уже ячейку
+	//2. РЎРѕР·РґР°РµРј РјР°С‚СЂРёС†Сѓ СЂР°Р·РјРµСЂРѕРј СЃ childrenArray, РїРѕРєР°Р·С‹РІР°СЋС‰СѓСЋ, РїРѕСЃРµС‚РёР»Рё Р»Рё
+	//   РјС‹ СѓР¶Рµ СЏС‡РµР№РєСѓ
 	bool** visited = new bool*[_children.height];
 	for (int i = 0; i < _children.height; i++)
 	{
@@ -88,15 +88,15 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 		}
 	}
 
-	//Очередь индексов точек
+	//РћС‡РµСЂРµРґСЊ РёРЅРґРµРєСЃРѕРІ С‚РѕС‡РµРє
 	std::stack<Point> points;
 
-	//3. Выполняем разбивку
+	//3. Р’С‹РїРѕР»РЅСЏРµРј СЂР°Р·Р±РёРІРєСѓ
 	for (int i = 0; i < _children.height; i++)
 	{
 		for (int j = 0; j < _children.width; j++)
 		{
-			//Берем очередного потомка
+			//Р‘РµСЂРµРј РѕС‡РµСЂРµРґРЅРѕРіРѕ РїРѕС‚РѕРјРєР°
 			BaseObject3D* child = _children.childrenArray[i][j];
 			if ((child != NULL) && !visited[i][j])
 			{
@@ -114,25 +114,25 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 				if (lastColor[2] > 1)
 					lastColor[2] = 0;
 
-				//Если он существует, то находим все близкие объекты и добавляем их
-				//В новый объект-группу
+				//Р•СЃР»Рё РѕРЅ СЃСѓС‰РµСЃС‚РІСѓРµС‚, С‚Рѕ РЅР°С…РѕРґРёРј РІСЃРµ Р±Р»РёР·РєРёРµ РѕР±СЉРµРєС‚С‹ Рё РґРѕР±Р°РІР»СЏРµРј РёС…
+				//Р’ РЅРѕРІС‹Р№ РѕР±СЉРµРєС‚-РіСЂСѓРїРїСѓ
 				Object3D* newParent = new Object3D(this);
 				_childrenList.push_back(newParent);
 				points.push(Point(j, i));
 
 				while (points.size() > 0)
 				{
-					//Берем последнюю точку
+					//Р‘РµСЂРµРј РїРѕСЃР»РµРґРЅСЋСЋ С‚РѕС‡РєСѓ
 					Point currentPoint = points.top();
 					points.pop();
 					
-					//Добавляем текущий объект в потомки новому объекту-группе
+					//Р”РѕР±Р°РІР»СЏРµРј С‚РµРєСѓС‰РёР№ РѕР±СЉРµРєС‚ РІ РїРѕС‚РѕРјРєРё РЅРѕРІРѕРјСѓ РѕР±СЉРµРєС‚Сѓ-РіСЂСѓРїРїРµ
 					BaseObject3D* currentObject = _children.childrenArray[currentPoint.Y][currentPoint.X];
 
 					newParent->AddChild(currentObject);
 					visited[currentPoint.Y][currentPoint.X] = true;
 					
-					//Добавляем в очередь всех близких соседей этого объекта
+					//Р”РѕР±Р°РІР»СЏРµРј РІ РѕС‡РµСЂРµРґСЊ РІСЃРµС… Р±Р»РёР·РєРёС… СЃРѕСЃРµРґРµР№ СЌС‚РѕРіРѕ РѕР±СЉРµРєС‚Р°
 					for (int y = currentPoint.Y - 1; y <= currentPoint.Y + 1; y++)
 					{
 						for (int x = currentPoint.X - 1; x <= currentPoint.X + 1; x++)
@@ -157,12 +157,12 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 
 	}
 
-	//Удаляем стврый childrenArray
+	//РЈРґР°Р»СЏРµРј СЃС‚РІСЂС‹Р№ childrenArray
 	/*for (int i = 0; i < _children.height; i++)
 		delete[] _children.childrenArray[i];
 	delete[] _children.childrenArray;
 
-	//Удаляем visited
+	//РЈРґР°Р»СЏРµРј visited
 	for (int i = 0; i < _children.height; i++)
 		delete[] visited[i];
 	delete[] visited;*/
@@ -171,62 +171,8 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 	cv::imshow("wtf", img);
 }
 
-void PointCloudStorage::_findNearbyChildren(int row, int col, Children children, BaseObject3D*** tempArr, bool** visited, float MaxDist, Object3D* newParent, cv::Mat img, cv::Scalar color)
-{
-	BaseObject3D* current = children.childrenArray[row][col];
-	BaseObject3D* up = NULL;
-	BaseObject3D* down = NULL;
-	BaseObject3D* left = NULL;
-	BaseObject3D* right = NULL;
-	bool vUp = false;
-	bool vDown = false;
-	bool vLeft = false;
-	bool vRight = false;
-
-	//Добавляем этот объект в потомки нового объекта
-	tempArr[row][col] = newParent;
-	newParent->AddChild(current);
-	visited[row][col] = true;
-
-	img.at<cv::Scalar>(row, col) = color;
-
-	//Определяем объекты с 4х сторон от текущего
-	if (row > 0)
-	{
-		up = children.childrenArray[row - 1][col];
-		vUp = visited[row - 1][col];
-	}
-	if (row < children.height - 1)
-	{
-		down = children.childrenArray[row + 1][col];
-		vDown = visited[row + 1][col];
-	}
-	if (col > 0)
-	{
-		left = children.childrenArray[row][col - 1];
-		vLeft = visited[row][col - 1];
-	}
-	if (col < children.width - 1)
-	{
-		right = children.childrenArray[row][col + 1];
-		vRight = visited[row][col + 1];
-	}
-
-	if (up && !vUp && isDistLess(*up, *current, MaxDist))
-		_findNearbyChildren(row - 1, col, children, tempArr, visited, MaxDist, newParent, img, color);
-
-	if (down && !vDown && isDistLess(*down, *current, MaxDist))
-		_findNearbyChildren(row + 1, col, children, tempArr, visited, MaxDist, newParent, img, color);
-
-	if (left && !vLeft && isDistLess(*left, *current, MaxDist))
-		_findNearbyChildren(row, col - 1, children, tempArr, visited, MaxDist, newParent, img, color);
-
-	if (right && !vRight && isDistLess(*right, *current, MaxDist))
-		_findNearbyChildren(row, col + 1, children, tempArr, visited, MaxDist, newParent, img, color);
-
-}
-
-void _saveFromObject(Object3D* object, std::ofstream& stream)
+//Р РµРєСѓСЂСЃРёРІРЅРѕ СЃРѕС…СЂР°РЅСЏРµС‚ РѕР±СЉРµРєС‚
+void PointCloudStorage::_saveFromObject(Object3D* object, std::ofstream& stream) const
 {
 	for (int i = 0; i < object->ChildrenCount(); i++)
 	{
@@ -244,7 +190,7 @@ void _saveFromObject(Object3D* object, std::ofstream& stream)
 	}
 }
 
-//Сохраняет все в файл obj
+//РЎРѕС…СЂР°РЅСЏРµС‚ РІСЃРµ РІ С„Р°Р№Р» obj
 void PointCloudStorage::SaveToObj(const char* filename, int minCount) const
 {
 	std::ofstream stream(filename);
@@ -253,6 +199,7 @@ void PointCloudStorage::SaveToObj(const char* filename, int minCount) const
 		BaseObject3D* obj = _childrenList[i];
 		if (obj != NULL)
 		{
+			auto type = obj->GetType();
 			if (obj->GetType() == Object3DType::TYPE_POINT)
 			{
 				cv::Vec3f point = obj->GetCoord();
@@ -266,8 +213,20 @@ void PointCloudStorage::SaveToObj(const char* filename, int minCount) const
 }
 
 
-//Возвращает тип
-PointCloudStorage::Object3DType PointCloudStorage::GetType()
+//Р’РѕР·РІСЂР°С‰Р°РµС‚ С‚РёРї
+PointCloudStorage::Object3DType PointCloudStorage::GetType() const
 {
 	return Object3DType::TYPE_SCENE;
+}
+
+//Р’РѕР·СЂР°С‰Р°РµС‚ С‡РёСЃР»Рѕ РїРѕС‚РѕРјРєРѕРІ
+int PointCloudStorage::ChildrenCount() const
+{
+	return _childrenList.size();
+}
+
+//Р’РѕР·РІСЂР°С‰Р°РµС‚ РїРѕС‚РѕРјРєР°
+BaseObject3D* PointCloudStorage::GetChild(int index) const
+{
+	return _childrenList[index];
 }
