@@ -7,7 +7,7 @@ my_object:
    blockSize: 9
    speckleWindowSize: 0
    speckleRange: 0
-   disp12MaxDiff: 0
+   disp12MaxDiff: 1
    preFilterType: 1
    preFilterSize: 5
    preFilterCap: 63

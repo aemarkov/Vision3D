@@ -257,8 +257,8 @@ int main(int argc, _TCHAR* argv[])
 				callbackSGBM(0, &data);
 			else
 				callbackBM(0, &data);
-
-			if (waitKey(0) == 27)break;
+			
+			waitKey(0);
 		}
 
 		//Созранение облака точек
@@ -267,21 +267,23 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(leftIm, IMAGE_SCALE);
 		convertImage(rightIm, IMAGE_SCALE);
 
-		
-		PointCloudStorage* cloud;
+		cout << "Separating objects\n";
+		cout << "Press entere to process\n";
+		PointCloudStorage* cloud = sv.CalculatePointCloud(leftIm, rightIm);
 		while (true)
 		{
 			cloud = sv.CalculatePointCloud(leftIm, rightIm);
 			cloud->SeparateObjects(maxDist / 10.0);
-			if (waitKey(1) != -1)break;
+			if (waitKey(0) == 13)break;
 			//delete cloud;
 		}
 
 
-
+		cout << "Saving file\n";
 		cloud->SaveToObj("cloud_0.obj",0);
-		//cloud->SaveToObj("cloud_1.obj", 10);
+		cloud->SaveToObj("cloud_1.obj", 60);
 
+		cout << "Press esc to exit\n";
 		if (waitKey(0) == 27)break;
 	}
 
@@ -414,6 +416,8 @@ void displayTrackbarsSGBM(CallbackData& data)
 	createTrackbar("Uniqueness Ratio", "trackbars", &stereoSGBMParams.uniquenessRatio, 100, callbackSGBM, (void*)&data);
 	createTrackbar("Speckle Win Size", "trackbars", &stereoSGBMParams.speckleWindowSize, 200, callbackSGBM, (void*)&data);
 	createTrackbar("Speckle Range", "trackbars", &stereoSGBMParams.speckleRange, 10, callbackSGBM, (void*)&data);
+
+	createTrackbar("Max dist", "trackbars", &maxDist, 30, NULL, NULL);
 }
 void displayTrackbarsBM(CallbackData& data)
 {
@@ -429,7 +433,7 @@ void displayTrackbarsBM(CallbackData& data)
 	createTrackbar("Speckle range", "trackbars", &stereoBMParams.speckleRange, 100, callbackBM, (void*)&data);
 	createTrackbar("Disp12MaxDiff", "trackbars", &stereoBMParams.disp12MaxDiff, 100, callbackBM, (void*)&data);
 
-	createTrackbar("Max dist", "trackbars", &maxDist, 7, NULL, NULL);
+	createTrackbar("Max dist", "trackbars", &maxDist, 30, NULL, NULL);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

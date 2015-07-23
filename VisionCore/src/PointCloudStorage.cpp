@@ -65,6 +65,7 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 {
 	cv::Mat img = cv::Mat_<cv::Scalar>(_children.height, _children.width);
 	cv::Scalar lastColor(0, 0, 0);
+	_childrenList.clear();
 
 	//1. Выделяем новый массив под указатели на потомков
 	BaseObject3D*** tempArr = new BaseObject3D**[_children.height];
@@ -87,7 +88,8 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 		}
 	}
 
-	_childrenList.clear();
+	//Очередь индексов точек
+	std::stack<Point> points;
 
 	//3. Выполняем разбивку
 	for (int i = 0; i < _children.height; i++)
@@ -112,10 +114,43 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 				if (lastColor[2] > 1)
 					lastColor[2] = 0;
 
-				//Если он существует, то 
+				//Если он существует, то находим все близкие объекты и добавляем их
+				//В новый объект-группу
 				Object3D* newParent = new Object3D(this);
 				_childrenList.push_back(newParent);
-				_findNearbyChildren(i, j,_children, tempArr, visited, maxDist, newParent, img, lastColor);
+				points.push(Point(j, i));
+
+				while (points.size() > 0)
+				{
+					//Берем последнюю точку
+					Point currentPoint = points.top();
+					points.pop();
+					
+					//Добавляем текущий объект в потомки новому объекту-группе
+					BaseObject3D* currentObject = _children.childrenArray[currentPoint.Y][currentPoint.X];
+
+					newParent->AddChild(currentObject);
+					visited[currentPoint.Y][currentPoint.X] = true;
+					
+					//Добавляем в очередь всех близких соседей этого объекта
+					for (int y = currentPoint.Y - 1; y <= currentPoint.Y + 1; y++)
+					{
+						for (int x = currentPoint.X - 1; x <= currentPoint.X + 1; x++)
+						{
+							if ((y>0) && (x > 0) && (y < _children.height - 1) && (x < _children.width - 1) && !visited[y][x])
+							{
+								//std::cout << y << " "<<x << " yes\n";
+								BaseObject3D* object = _children.childrenArray[y][x];
+								if ((object != NULL) && isDistLess(*object, *currentObject, maxDist))
+								{
+									points.push(Point(x, y));
+								}
+							}
+						}
+					}
+
+					img.at<cv::Scalar>(currentPoint.Y, currentPoint.X) = lastColor;
+				}
 			}
 		}
 	

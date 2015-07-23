@@ -16,6 +16,8 @@
 
 #include <opencv2/opencv.hpp>
 #include <vector>
+#include <queue>
+#include <stack>
 #include <fstream>
 
 #include "BaseObject3D.h"
@@ -44,6 +46,13 @@ public:
 
 private:
 	
+	//Просто точка
+	struct Point
+	{
+		int X, Y;
+		Point(int x, int y){ X = x; Y = y; }
+	};
+
 	//Массив потомков
 	struct Children
 	{
