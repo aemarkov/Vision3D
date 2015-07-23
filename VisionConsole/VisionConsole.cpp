@@ -16,6 +16,7 @@
 #include "StereoCalibData.h"
 #include "StaticHelpers.h"
 
+#include "GlutViewer.h"
 
 using namespace cv;
 using namespace std;
@@ -80,6 +81,7 @@ void displayTrackbarsBM(CallbackData& data);
 //Событие изменения положения ползунка
 void callbackSGBM(int wtf, void* data);
 void callbackBM(int wtf, void* data);
+
 
 //Масштабирует изображение и переводит его в ч\б
 void convertImage(Mat& image, float scale);
@@ -235,6 +237,7 @@ int main(int argc, _TCHAR* argv[])
 			else
 				callbackBM(0, &data);
 
+
 			//Показ карты различий в вреальном времени
 			if (disparityRealtime(cap1, cap2, sv))break;
 		}
@@ -267,21 +270,19 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(leftIm, IMAGE_SCALE);
 		convertImage(rightIm, IMAGE_SCALE);
 
-		cout << "Separating objects\n";
-		cout << "Press entere to process\n";
-		PointCloudStorage* cloud = sv.CalculatePointCloud(leftIm, rightIm);
-		while (true)
+		PointCloudStorage* cloud;
+		GlutViewer glViewe(argc, argv);
+		do
 		{
 			cloud = sv.CalculatePointCloud(leftIm, rightIm);
-			cloud->SeparateObjects(maxDist / 10.0);
+			cloud->SeparateObjects(maxDist / 10.0f);
 			if (waitKey(0) == 13)break;
-			//delete cloud;
-		}
+			//
+		} while (true);
 
-
-		cout << "Saving file\n";
-		cloud->SaveToObj("cloud_0.obj",0);
-		cloud->SaveToObj("cloud_1.obj", 60);
+		cout << "Saving files...\n";
+		//cloud->SaveToObj("cloud_0.obj", 0);
+		//cloud->SaveToObj("cloud_0.obj", 0);
 
 		cout << "Press esc to exit\n";
 		if (waitKey(0) == 27)break;
@@ -500,9 +501,9 @@ void callbackBM(int wtf, void* data)
 	Mat disparity;
 	cData.sv.SetStereoMatcher(stereoBMParams.sbm);
 	cData.sv.CalculatePointCloud(cData.left, cData.right, disparity, true);
+
 	imshow("disparity",disparity);
 }
-
 
 //Отображение карты в режиме реального времени
 bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
