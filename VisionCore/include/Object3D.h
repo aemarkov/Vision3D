@@ -38,6 +38,12 @@ public:
 	 */
 	void AddChild(BaseObject3D* child);
 
+	//Возращает число потомков
+	int ChildrenCount();
+
+	//Возвращает потомка
+	BaseObject3D* GetChild(int index);
+
 	//Возвращает тип объекта
 	Object3DType GetType();
 

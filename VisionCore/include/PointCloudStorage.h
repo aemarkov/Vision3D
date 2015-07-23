@@ -35,7 +35,7 @@ public:
 	~PointCloudStorage();
 
 	//Сохраняет все в файл obj
-	void SaveToObj(const char* filename) const;
+	void SaveToObj(const char* filename, int minCount) const;
 
 	//Возвращает тип
 	Object3DType GetType();
@@ -50,6 +50,10 @@ private:
 		BaseObject3D*** childrenArray;
 		int width, height;
 	} _children;
+
+	std::vector<BaseObject3D*> _childrenList;
+
+	void _findNearbyChildren(int row, int col,Children  children, BaseObject3D*** tempArr, bool** visited, float MaxDist, Object3D* newParent, cv::Mat img, cv::Scalar color);
 };
 
 #endif

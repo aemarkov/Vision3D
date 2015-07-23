@@ -33,18 +33,15 @@ PointCloudStorage::PointCloudStorage(cv::Mat cloud)
 //Удаляет объект
 PointCloudStorage::~PointCloudStorage()
 {
-	/*if (_children.childrenArray == NULL)
-		return;
-
-	for (int i = 0; i < _children.width; i++)
+	for (int i = 0; i < _children.height; i++)
 	{
-		for (int j = 0; j < _children.height; j++)
+		for (int j = 0; j < _children.width; j++)
 		{
 			delete _children.childrenArray[i][j];
 		}
 		delete[] _children.childrenArray[i];
 	}
-	delete[] _children.childrenArray;*/
+	delete[] _children.childrenArray;
 }
 
 bool isDistLess(BaseObject3D& o1, BaseObject3D& o2, float maxDist)
@@ -53,104 +50,178 @@ bool isDistLess(BaseObject3D& o1, BaseObject3D& o2, float maxDist)
 	return dist <= maxDist;
 }
 
+/*
+Object3D* obj = new Object3D(this);
+obj->AddChild(child);
+tempArr[i][j] = obj;
+
+*/
+
 //Разбиение точек на объекты
 void PointCloudStorage::SeparateObjects(float maxDist)
 {
 	cv::Mat img = cv::Mat_<cv::Scalar>(_children.height, _children.width);
 	cv::Scalar lastColor(0, 0, 0);
 
-	//cv::Scalar colors = { cv::Scalar(1, 0, 0), cv::Scalar() }
-
 	//1. Выделяем новый массив под указатели на потомков
 	BaseObject3D*** tempArr = new BaseObject3D**[_children.height];
 	for (int i = 0; i < _children.height; i++)
+	{
 		tempArr[i] = new BaseObject3D*[_children.width];
+		for (int j = 0; j < _children.width; j++)
+			tempArr[i][j] = NULL;
+	}
 
+	//2. Создаем матрицу размером с childrenArray, показывающую, посетили ли
+	//   мы уже ячейку
+	bool** visited = new bool*[_children.height];
+	for (int i = 0; i < _children.height; i++)
+	{
+		visited[i] = new bool[_children.width];
+		for (int j = 0; j < _children.width; j++)
+		{
+			visited[i][j] = false;
+		}
+	}
+
+	//3. Выполняем разбивку
 	for (int i = 0; i < _children.height; i++)
 	{
 		for (int j = 0; j < _children.width; j++)
 		{
+			//Берем очередного потомка
 			BaseObject3D* child = _children.childrenArray[i][j];
-			BaseObject3D* childLeft = NULL;
-			BaseObject3D* childUp = NULL;
-			if (child != NULL)
+			if ((child != NULL) && !visited[i][j])
 			{
-				if (j > 0)
-					childLeft = _children.childrenArray[i][j - 1];
-				if (i > 0)
-					childUp = _children.childrenArray[i - 1][j];
-
-				bool isLeft = (childLeft != NULL) && isDistLess(*childLeft, *child, maxDist);
-				bool isUp = (childUp != NULL) && isDistLess(*childUp, *child, maxDist);
-
-				if (isLeft && !isUp)
+				lastColor[0] += 0.5;
+				if (lastColor[0] > 1)
 				{
-					child->Parent = childLeft->Parent;
-					tempArr[i][j] = child->Parent;
-					//img.at < cv::Scalar>(i, j) = lastColor;
+					lastColor[1] += 0.5;
+					lastColor[0] = 0;
 				}
-				else if (isUp && !isLeft)
+				if (lastColor[1] > 1)
 				{
-					child->Parent = childUp->Parent;
-					tempArr[i][j] = child->Parent;
-					//img.at < cv::Scalar>(i, j) = lastColor;
+					lastColor[2] += 0.5;
+					lastColor[1] = 0;
 				}
-				else if (isLeft && isUp)
-				{
-					//Переназначаем все объекты левой группы верхней
-					img.at < cv::Scalar>(i, j) = cv::Scalar(1,1,1);
-				}
-				else
-				{
-					Object3D* obj = new Object3D(this);
-					obj->AddChild(child);
-					tempArr[i][j] = obj;
+				if (lastColor[2] > 1)
+					lastColor[2] = 0;
 
-					lastColor[0] += 0.5;
-					if (lastColor[0] > 1)
-					{
-						lastColor[1] += 0.5;
-						lastColor[0] = 0;
-					}
-					if (lastColor[1] > 1)
-					{
-						lastColor[2] += 0.5;
-						lastColor[1] = 0;
-					}
-					if (lastColor[2] > 1)
-						lastColor[2] = 0;
-					
-					//img.at < cv::Scalar>(i, j) = lastColor;
-					//std::cout << lastColor[0] << " " << lastColor[1] << " " << lastColor[2] << "\n";
-				}
-
-				
-
+				//Если он существует, то 
+				Object3D* newParent = new Object3D(this);
+				_childrenList.push_back(newParent);
+				_findNearbyChildren(i, j,_children, tempArr, visited, maxDist, newParent, img, lastColor);
 			}
 		}
 	
 
 	}
 
+	//Удаляем стврый childrenArray
+	/*for (int i = 0; i < _children.height; i++)
+		delete[] _children.childrenArray[i];
+	delete[] _children.childrenArray;
+
+	//Удаляем visited
+	for (int i = 0; i < _children.height; i++)
+		delete[] visited[i];
+	delete[] visited;*/
+
+	_children.childrenArray = tempArr;
 	cv::imshow("wtf", img);
-	cv::waitKey(1);
-	//cv::destroyWindow("wtf");
+}
+
+void PointCloudStorage::_findNearbyChildren(int row, int col, Children children, BaseObject3D*** tempArr, bool** visited, float MaxDist, Object3D* newParent, cv::Mat img, cv::Scalar color)
+{
+	BaseObject3D* current = children.childrenArray[row][col];
+	BaseObject3D* up = NULL;
+	BaseObject3D* down = NULL;
+	BaseObject3D* left = NULL;
+	BaseObject3D* right = NULL;
+	bool vUp = false;
+	bool vDown = false;
+	bool vLeft = false;
+	bool vRight = false;
+
+	//Добавляем этот объект в потомки нового объекта
+	tempArr[row][col] = newParent;
+	newParent->AddChild(current);
+	visited[row][col] = true;
+
+	img.at<cv::Scalar>(row, col) = color;
+	//cv::imshow("wtf", img);
+	//cv::waitKey(1);
+
+	//Определяем объекты с 4х сторон от текущего
+	if (row > 0)
+	{
+		up = children.childrenArray[row - 1][col];
+		vUp = visited[row - 1][col];
+	}
+	if (row < children.height - 1)
+	{
+		down = children.childrenArray[row + 1][col];
+		vDown = visited[row + 1][col];
+	}
+	if (col > 0)
+	{
+		left = children.childrenArray[row][col - 1];
+		vLeft = visited[row][col - 1];
+	}
+	if (col < children.width - 1)
+	{
+		right = children.childrenArray[row][col + 1];
+		vRight = visited[row][col + 1];
+	}
+
+	if (up && !vUp && isDistLess(*up, *current, MaxDist))
+		_findNearbyChildren(row - 1, col, children, tempArr, visited, MaxDist, newParent, img, color);
+
+	if (down && !vDown && isDistLess(*down, *current, MaxDist))
+		_findNearbyChildren(row + 1, col, children, tempArr, visited, MaxDist, newParent, img, color);
+
+	if (left && !vLeft && isDistLess(*left, *current, MaxDist))
+		_findNearbyChildren(row, col - 1, children, tempArr, visited, MaxDist, newParent, img, color);
+
+	if (right && !vRight && isDistLess(*right, *current, MaxDist))
+		_findNearbyChildren(row, col + 1, children, tempArr, visited, MaxDist, newParent, img, color);
+
+}
+
+void _saveFromObject(Object3D* object, std::ofstream& stream)
+{
+	for (int i = 0; i < object->ChildrenCount(); i++)
+	{
+		BaseObject3D* curObject = object->GetChild(i);
+		if (curObject != NULL)
+		{
+			if (curObject->GetType() == BaseObject3D::TYPE_OBJECT)
+				_saveFromObject(dynamic_cast<Object3D*>(curObject), stream);
+			else
+			{
+				cv::Vec3f point = curObject->GetCoord();
+				stream << "v " << point[0] << point[1] << point[2];
+			}
+		}
+	}
 }
 
 //Сохраняет все в файл obj
-void PointCloudStorage::SaveToObj(const char* filename) const
+void PointCloudStorage::SaveToObj(const char* filename, int minCount) const
 {
 	std::ofstream stream(filename);
-	for (int i = 0; i < _children.width; i++)
+	for (int i = 0; i < _childrenList.size(); i++)
 	{
-		for (int j = 0; j < _children.height; j++)
+		BaseObject3D* obj = _childrenList[i];
+		if (obj != NULL)
 		{
-			BaseObject3D* obj = _children.childrenArray[i][j];
 			if (obj->GetType() == Object3DType::TYPE_POINT)
 			{
 				cv::Vec3f point = obj->GetCoord();
 				stream << "v " << point[0] << point[1] << point[2];
 			}
+			else if (dynamic_cast<Object3D*>(obj)->ChildrenCount()>minCount)
+				_saveFromObject((Object3D*)obj, stream);
 		}
 	}
 	stream.close();

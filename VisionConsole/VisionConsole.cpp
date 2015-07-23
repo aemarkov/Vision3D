@@ -267,13 +267,20 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(leftIm, IMAGE_SCALE);
 		convertImage(rightIm, IMAGE_SCALE);
 
-		PointCloudStorage* cloud = sv.CalculatePointCloud(leftIm, rightIm);
+		
 		
 		while (true)
 		{
-			cloud->SeparateObjects(maxDist/10.0);
-			if (waitKey(10) != -1)break;
+			PointCloudStorage* cloud = sv.CalculatePointCloud(leftIm, rightIm);
+			cloud->SeparateObjects(maxDist / 10.0);
+			if (waitKey(1) != -1)break;
+			//delete cloud;
 		}
+
+
+
+		//cloud->SaveToObj("cloud_0.obj",0);
+		//cloud->SaveToObj("cloud_1.obj", 10);
 
 		if (waitKey(0) == 27)break;
 	}
@@ -422,7 +429,7 @@ void displayTrackbarsBM(CallbackData& data)
 	createTrackbar("Speckle range", "trackbars", &stereoBMParams.speckleRange, 100, callbackBM, (void*)&data);
 	createTrackbar("Disp12MaxDiff", "trackbars", &stereoBMParams.disp12MaxDiff, 100, callbackBM, (void*)&data);
 
-	createTrackbar("Max dist", "trackbars", &maxDist, 100, NULL, NULL);
+	createTrackbar("Max dist", "trackbars", &maxDist, 7, NULL, NULL);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

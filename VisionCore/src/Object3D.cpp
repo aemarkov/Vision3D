@@ -1,4 +1,4 @@
-﻿#include "Object3D.h"
+#include "Object3D.h"
 
 //Создает новый объект
 Object3D::Object3D()
@@ -32,4 +32,16 @@ void Object3D::AddChild(BaseObject3D* child)
 Object3D::Object3DType Object3D::GetType()
 {
 	return Object3DType::TYPE_OBJECT;
+}
+
+//Возращает число потомков
+int Object3D::ChildrenCount()
+{
+	return _children.size();
+}
+
+//Возвращает потомка
+BaseObject3D* Object3D::GetChild(int index)
+{
+	return _children[index];
 }
