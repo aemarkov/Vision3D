@@ -199,7 +199,6 @@ void PointCloudStorage::SaveToObj(const char* filename, int minCount) const
 		BaseObject3D* obj = _childrenList[i];
 		if (obj != NULL)
 		{
-			auto type = obj->GetType();
 			if (obj->GetType() == Object3DType::TYPE_POINT)
 			{
 				cv::Vec3f point = obj->GetCoord();

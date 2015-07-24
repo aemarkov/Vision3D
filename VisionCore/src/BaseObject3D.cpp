@@ -1,4 +1,4 @@
-﻿#include "BaseObject3D.h"
+#include "BaseObject3D.h"
 
 //Создает объект с заданными коордиантами
 BaseObject3D::BaseObject3D()
@@ -36,7 +36,7 @@ cv::Vec3f BaseObject3D::GetCoord()
 }
 
 //Возращает тип
-BaseObject3D::Object3DType BaseObject3D::GetType()
+BaseObject3D::Object3DType BaseObject3D::GetType() const
 {
 	return Object3DType::TYPE_POINT;
 }

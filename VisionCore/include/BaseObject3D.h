@@ -1,4 +1,4 @@
-﻿#ifndef __BASEOBJECT3D_H__
+#ifndef __BASEOBJECT3D_H__
 #define __BASEOBJECT3D_H__
 
 
@@ -44,7 +44,7 @@ public:
 	cv::Vec3f GetCoord();
 	
 	//Возращает тип
-	virtual Object3DType GetType();
+	virtual Object3DType GetType() const;
 
 protected:
 	cv::Vec3f _coord;
