@@ -62,6 +62,7 @@ void GlutViewer::idleWrapper()
 
 void GlutViewer::idle()
 {
+	std::this_thread::sleep_for(std::chrono::milliseconds(10));
 	renderScene();
 }
 
@@ -89,6 +90,8 @@ void GlutViewer::renderScene() {
 	glScaled(scale, scale, scale);
 
 	glBegin(GL_POINTS);
+
+	glVertex3f(0, 0, 0);
 
 	//Отрисовываем модель
 	Color color(0, 0, 0);
@@ -118,10 +121,14 @@ void GlutViewer::renderScene() {
 			else if (object->GetType() == BaseObject3D::TYPE_POINT)
 			{
 				cv::Vec3f coord = object->GetCoord();
-				glVertex3f(coord[0]/5, coord[1]/5, coord[2]/5);
+				glVertex3f(coord[0]/5.0, coord[1]/5.0, coord[2]/5.0);
 			}
 		}
 	}
+
+	//glVertex3f(0.5, 0, 0);
+	//glVertex3f(0, 0.5, 0);
+	//glVertex3f(0, 0, 0.5);
 
 	glEnd();
 
@@ -142,7 +149,11 @@ void GlutViewer::renderObject(Object3D* object, Color color)
 			{
 				cv::Vec3f coord = curObject->GetCoord();
 				glColor3f(color.R, color.G, color.B);
-				glVertex3f(coord[0]/5, coord[1]/5, coord[2]/5);
+				float x = coord[0] / 5.0;
+				float y = coord[1] / 5.0;
+				float z = coord[2] / 5.0;
+				//std::cout << x << " " << y << " " << z << "\n";
+				glVertex3f(coord[0]/5.0, coord[1]/5.0, coord[2]/5.0);
 			}
 		}
 	}
@@ -157,13 +168,13 @@ void GlutViewer::keyPressedWrapper(int key, int x, int y)
 void GlutViewer::keyPressed(int key, int x, int y)
 {
 	if (key == GLUT_KEY_LEFT)
-		rotY--;
+		rotY-=5;
 	else if (key == GLUT_KEY_RIGHT)
-		rotY++;
+		rotY+=5;
 	else if (key == GLUT_KEY_UP)
-		rotX--;
+		rotX-=5;
 	else if (key == GLUT_KEY_DOWN)
-		rotX++;
+		rotX+=5;
 
 	renderScene();
 }

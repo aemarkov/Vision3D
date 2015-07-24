@@ -58,7 +58,18 @@ struct StereoBMParams
 	Ptr<StereoBM> sbm;
 } stereoBMParams;
 
-int maxDist = 1;
+//Параметры для разделения на объекты
+struct SeparateData
+{
+	StereoVision* sv;
+	GlutViewer* viewer;
+	Mat left;
+	Mat right;
+	PointCloudStorage* cloud = NULL;
+	int maxDist = 1;
+	int minCount = 10;
+
+} separateData;
 
 //Структура для передачи данных в обработчики событий
 struct CallbackData
@@ -77,11 +88,13 @@ bool aiming(VideoCapture & cap, VideoCapture & cap2);
 
 void displayTrackbarsSGBM(CallbackData& data);
 void displayTrackbarsBM(CallbackData& data);
+void displayTrackbarSeparate();
 
 //Событие изменения положения ползунка
 void callbackSGBM(int wtf, void* data);
 void callbackBM(int wtf, void* data);
-
+void callbackMaxDist(int wtf, void* data);
+void callbackMinCount(int wtf, void* data);
 
 //Масштабирует изображение и переводит его в ч\б
 void convertImage(Mat& image, float scale);
@@ -239,12 +252,14 @@ int main(int argc, _TCHAR* argv[])
 
 
 			//Показ карты различий в вреальном времени
+			cout << "Showing disparity map in realtime\n";
 			if (disparityRealtime(cap1, cap2, sv))break;
 		}
 		else
 		{
 			//Строим карту глубины по изображениям (не в реальном времени)
 			//Даем пользователю поставить объект в нужное место
+			cout << "Press any key to capture\n";
 			aiming(cap1, cap2);
 
 			//Захват изображений
@@ -261,6 +276,8 @@ int main(int argc, _TCHAR* argv[])
 			else
 				callbackBM(0, &data);
 			
+			cout << "Tune up Stereo Matching params\n";
+			cout << "Pres any key to continue\n";
 			waitKey(0);
 		}
 
@@ -270,21 +287,22 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(leftIm, IMAGE_SCALE);
 		convertImage(rightIm, IMAGE_SCALE);
 
-		PointCloudStorage* cloud = NULL;
-		GlutViewer glViewer(argc, argv, cloud);
-		do
-		{
-			cloud = sv.CalculatePointCloud(leftIm, rightIm);
-			cloud->SeparateObjects(maxDist / 10.0f);
-			glViewer.UpdateGeometry(cloud);
+		displayTrackbarSeparate();
 
-			if (waitKey(0) == 13)break;
-			//
-		} while (true);
+		GlutViewer viewer(argc, argv, NULL);
+		separateData.sv = &sv;
+		separateData.viewer = &viewer;
+		separateData.left = leftIm;
+		separateData.right = rightIm;
+		viewer.UpdateGeometry(separateData.cloud);
+		callbackMaxDist(0, &separateData);
+
+		cout << "Tune up separating params\n";
+		cout << "Pres any key to continue\n";
+		waitKey(0);
 
 		cout << "Saving files...\n";
-		cloud->SaveToObj("cloud_0.obj", 0);
-		cloud->SaveToObj("cloud_1.obj", 60);
+		separateData.cloud->SaveToObj("cloud.obj");
 
 		cout << "Press esc to exit\n";
 		if (waitKey(0) == 27)break;
@@ -408,7 +426,7 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void displayTrackbarsSGBM(CallbackData& data)
 {
-	namedWindow("trackbars");
+	namedWindow("trackbars", CV_WINDOW_FREERATIO);
 	createTrackbar("Min Disparity", "trackbars", &stereoSGBMParams.minDisparity, 100, callbackSGBM, (void*)&data);
 	createTrackbar("Num Disparties", "trackbars", &stereoSGBMParams.numDisparities, 200, callbackSGBM, (void*)&data);
 	createTrackbar("SAD Window Size", "trackbars", &stereoSGBMParams.SADWindowSize, 20, callbackSGBM, (void*)&data);
@@ -419,12 +437,10 @@ void displayTrackbarsSGBM(CallbackData& data)
 	createTrackbar("Uniqueness Ratio", "trackbars", &stereoSGBMParams.uniquenessRatio, 100, callbackSGBM, (void*)&data);
 	createTrackbar("Speckle Win Size", "trackbars", &stereoSGBMParams.speckleWindowSize, 200, callbackSGBM, (void*)&data);
 	createTrackbar("Speckle Range", "trackbars", &stereoSGBMParams.speckleRange, 10, callbackSGBM, (void*)&data);
-
-	createTrackbar("Max dist", "trackbars", &maxDist, 30, NULL, NULL);
 }
 void displayTrackbarsBM(CallbackData& data)
 {
-	namedWindow("trackbars");
+	namedWindow("trackbars", CV_WINDOW_FREERATIO);
 	createTrackbar("Block size", "trackbars", &stereoBMParams.blockSize, 100, callbackBM, (void*)&data);
 	createTrackbar("Num Disparties", "trackbars", &stereoBMParams.numDisparities, 300, callbackBM, (void*)&data);
 	createTrackbar("Pre filter size", "trackbars", &stereoBMParams.preFilterSize, 100, callbackBM, (void*)&data);
@@ -436,7 +452,13 @@ void displayTrackbarsBM(CallbackData& data)
 	createTrackbar("Speckle range", "trackbars", &stereoBMParams.speckleRange, 100, callbackBM, (void*)&data);
 	createTrackbar("Disp12MaxDiff", "trackbars", &stereoBMParams.disp12MaxDiff, 100, callbackBM, (void*)&data);
 
-	createTrackbar("Max dist", "trackbars", &maxDist, 30, NULL, NULL);
+	
+}
+
+void displayTrackbarSeparate()
+{
+	createTrackbar("Max dist", "trackbars", &separateData.maxDist, 30, callbackMaxDist, &separateData);
+	createTrackbar("Min count", "trackbars", &separateData.minCount, 300, callbackMinCount, &separateData);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -505,6 +527,23 @@ void callbackBM(int wtf, void* data)
 	cData.sv.CalculatePointCloud(cData.left, cData.right, disparity, true);
 
 	imshow("disparity",disparity);
+}
+
+void callbackMaxDist(int wtf, void* data)
+{
+	SeparateData* cData = (SeparateData*)data;
+	cData->cloud = cData->sv->CalculatePointCloud(cData->left, cData->right);
+	cData->cloud->SeparateObjects(cData->maxDist / 10.0);
+	cData->viewer->UpdateGeometry(cData->cloud);
+}
+
+void callbackMinCount(int wtf, void* data)
+{
+	SeparateData* cData = (SeparateData*)data;
+	if (cData->cloud == NULL)return;
+
+	cData->cloud->DeleteNoise(cData->minCount);
+	cData->viewer->UpdateGeometry(cData->cloud);
 }
 
 //Отображение карты в режиме реального времени

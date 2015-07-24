@@ -158,18 +158,35 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 	}
 
 	//Удаляем стврый childrenArray
-	/*for (int i = 0; i < _children.height; i++)
+	for (int i = 0; i < _children.height; i++)
 		delete[] _children.childrenArray[i];
 	delete[] _children.childrenArray;
 
 	//Удаляем visited
 	for (int i = 0; i < _children.height; i++)
 		delete[] visited[i];
-	delete[] visited;*/
+	delete[] visited;
 
 	_children.childrenArray = tempArr;
 	cv::imshow("wtf", img);
+
+	DeleteNoise(0);
 }
+
+//Удаляет объекты с числом потомков меньше заданного
+void PointCloudStorage::DeleteNoise(int minCount)
+{
+	_filteredChildrenList.clear();
+	for (std::vector<BaseObject3D*>::iterator it = _childrenList.begin(); it != _childrenList.end(); ++it)
+	{
+		BaseObject3D* child = *it;
+		if ((child != NULL) && ((child->GetType() == Object3DType::TYPE_OBJECT) && (dynamic_cast<Object3D*>(child)->ChildrenCount() > minCount)))
+		{
+			_filteredChildrenList.push_back(child);
+		}
+	}
+}
+
 
 //Рекурсивно сохраняет объект
 void PointCloudStorage::_saveFromObject(Object3D* object, std::ofstream& stream) const
@@ -191,21 +208,21 @@ void PointCloudStorage::_saveFromObject(Object3D* object, std::ofstream& stream)
 }
 
 //Сохраняет все в файл obj
-void PointCloudStorage::SaveToObj(const char* filename, int minCount) const
+void PointCloudStorage::SaveToObj(const char* filename) const
 {
 	std::ofstream stream(filename);
 	for (int i = 0; i < _childrenList.size(); i++)
 	{
-		BaseObject3D* obj = _childrenList[i];
-		if (obj != NULL)
+		BaseObject3D* child = _childrenList[i];
+		if (child != NULL)
 		{
-			if (obj->GetType() == Object3DType::TYPE_POINT)
+			if (child->GetType() == Object3DType::TYPE_POINT)
 			{
-				cv::Vec3f point = obj->GetCoord();
+				cv::Vec3f point = child->GetCoord();
 				stream << "v " << point[0] << " " << point[1] << " " << point[2] << "\n";
 			}
-			else if (dynamic_cast<Object3D*>(obj)->ChildrenCount()>minCount)
-				_saveFromObject((Object3D*)obj, stream);
+			else if (child->GetType()==Object3DType::TYPE_OBJECT)
+				_saveFromObject((Object3D*)child, stream);
 		}
 	}
 	stream.close();
@@ -221,11 +238,11 @@ PointCloudStorage::Object3DType PointCloudStorage::GetType() const
 //Возращает число потомков
 int PointCloudStorage::ChildrenCount() const
 {
-	return _childrenList.size();
+	return _filteredChildrenList.size();
 }
 
 //Возвращает потомка
 BaseObject3D* PointCloudStorage::GetChild(int index) const
 {
-	return _childrenList[index];
+	return _filteredChildrenList[index];
 }

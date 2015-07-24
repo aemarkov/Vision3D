@@ -16,8 +16,8 @@
 
 #include <opencv2/opencv.hpp>
 #include <vector>
-#include <queue>
 #include <stack>
+#include <iterator>
 #include <fstream>
 
 #include "BaseObject3D.h"
@@ -37,10 +37,12 @@ public:
 	~PointCloudStorage();
 
 	//Сохраняет все в файл obj
-	void SaveToObj(const char* filename, int minCount) const;
+	void SaveToObj(const char* filename) const;
 
 	//Разделяет объекты в группы - добавляет еще один уровень иеархии
 	void SeparateObjects(float maxDist);
+
+	void DeleteNoise(int minCount);
 
 	//Возвращает тип
 	Object3DType GetType() const;
@@ -68,6 +70,7 @@ private:
 	} _children;
 
 	std::vector<BaseObject3D*> _childrenList;
+	std::vector<BaseObject3D*> _filteredChildrenList;
 
 	void _saveFromObject(Object3D* object, std::ofstream& stream) const;
 };
