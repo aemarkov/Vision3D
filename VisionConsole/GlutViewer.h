@@ -1,4 +1,4 @@
-﻿#ifndef __GLUTVIEWER_H__
+#ifndef __GLUTVIEWER_H__
 #define __GLUTVIEWER_H__
 
 #include "GL/freeglut.h"
@@ -13,6 +13,18 @@ public:
 	void UpdateGeometry(PointCloudStorage* cloud);
 
 private:
+
+	//Структура цвета
+	//Чтобы не тянуть в этот класс зависимость OpenCV из-за одного Scalar
+	struct Color
+	{
+		float R, G, B;
+		Color(float r, float b, float g)
+		{
+			R = r; B = b; G = g;
+		}
+	};
+
 	PointCloudStorage* cloud;
 
 	//Вращение и масштаб
@@ -26,12 +38,15 @@ private:
 	static void threadFunctionWrapper(int argc, char** argv, GlutViewer* instance);
 	void threadFunction(int argc, char** argv);
 
+	static void idleWrapper();
+	void idle();
+
 	//Функция отрисовки
 	static void renderSceneWrapper(void);
 	void renderScene();
 
 	//Рекурсивный рендер объекта
-	void renderObject(Object3D* object);
+	void renderObject(Object3D* object, Color color);
 
 	//Обработчик специальных клавиш
 	static void keyPressedWrapper(int key, int x, int y);

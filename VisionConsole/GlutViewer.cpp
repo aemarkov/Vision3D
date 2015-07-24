@@ -1,4 +1,4 @@
-﻿#include "GlutViewer.h"
+#include "GlutViewer.h"
 
 //Конструктор
 GlutViewer::GlutViewer(int argc, char** argv, PointCloudStorage* cloud)
@@ -39,7 +39,7 @@ void GlutViewer::threadFunction(int argc, char** argv)
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
 
 	//Создание окна
-	glutInitWindowSize(400, 400);
+	glutInitWindowSize(800, 800);
 	int windowId = glutCreateWindow("3D View");
 
 	//Передаем в статическую функцию-обработчик указатель на класс
@@ -49,7 +49,20 @@ void GlutViewer::threadFunction(int argc, char** argv)
 	glutDisplayFunc(renderSceneWrapper);
 	glutSpecialFunc(keyPressedWrapper);
 	glutKeyboardFunc(generalKeyPressedWrapper);
+	glutIdleFunc(idleWrapper);
 	glutMainLoop();
+}
+
+
+void GlutViewer::idleWrapper()
+{
+	GlutViewer* instance = (GlutViewer*)glutGetWindowData();
+	instance->idle();
+}
+
+void GlutViewer::idle()
+{
+	renderScene();
 }
 
 //Статическая функция обертка над функцией рендера
@@ -78,13 +91,30 @@ void GlutViewer::renderScene() {
 	glBegin(GL_POINTS);
 
 	//Отрисовываем модель
+	Color color(0, 0, 0);
 	for (int i = 0; i < cloud->ChildrenCount(); i++)
 	{
 		BaseObject3D* object = cloud->GetChild(i);
 		if (object != NULL)
 		{
 			if (object->GetType() == BaseObject3D::TYPE_OBJECT)
-				renderObject(dynamic_cast<Object3D*>(object));
+			{
+				color.R += 0.5;
+				if (color.R > 1)
+				{
+					color.R = 0;
+					color.B += 0.5;
+				}
+				if (color.G > 1)
+				{
+					color.G = 0;
+					color.B += 0.5;
+				}
+				if (color.B > 1)
+					color.B = 0;
+
+				renderObject(dynamic_cast<Object3D*>(object), color);
+			}
 			else if (object->GetType() == BaseObject3D::TYPE_POINT)
 			{
 				cv::Vec3f coord = object->GetCoord();
@@ -99,7 +129,7 @@ void GlutViewer::renderScene() {
 }
 
 //Рекурсивный рендер объекта
-void GlutViewer::renderObject(Object3D* object)
+void GlutViewer::renderObject(Object3D* object, Color color)
 {
 	for (int i = 0; i < object->ChildrenCount(); i++)
 	{
@@ -107,10 +137,11 @@ void GlutViewer::renderObject(Object3D* object)
 		if (curObject != NULL)
 		{
 			if (curObject->GetType() == BaseObject3D::TYPE_OBJECT)
-				renderObject(dynamic_cast<Object3D*>(curObject));
+				renderObject(dynamic_cast<Object3D*>(curObject), color);
 			else
 			{
 				cv::Vec3f coord = curObject->GetCoord();
+				glColor3f(color.R, color.G, color.B);
 				glVertex3f(coord[0]/5, coord[1]/5, coord[2]/5);
 			}
 		}

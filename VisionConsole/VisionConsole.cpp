@@ -271,12 +271,12 @@ int main(int argc, _TCHAR* argv[])
 		convertImage(rightIm, IMAGE_SCALE);
 
 		PointCloudStorage* cloud = NULL;
-		//GlutViewer glViewer(argc, argv, cloud);
+		GlutViewer glViewer(argc, argv, cloud);
 		do
 		{
 			cloud = sv.CalculatePointCloud(leftIm, rightIm);
 			cloud->SeparateObjects(maxDist / 10.0f);
-			//glViewer.UpdateGeometry(cloud);
+			glViewer.UpdateGeometry(cloud);
 
 			if (waitKey(0) == 13)break;
 			//
@@ -284,7 +284,7 @@ int main(int argc, _TCHAR* argv[])
 
 		cout << "Saving files...\n";
 		cloud->SaveToObj("cloud_0.obj", 0);
-		//cloud->SaveToObj("cloud_1.obj", 60);
+		cloud->SaveToObj("cloud_1.obj", 60);
 
 		cout << "Press esc to exit\n";
 		if (waitKey(0) == 27)break;
