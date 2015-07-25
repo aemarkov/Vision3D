@@ -3,13 +3,25 @@
 
 #include "GL/freeglut.h"
 #include <thread>
+#include <mutex>
 
 #include "PointCloudStorage.h"
+
+/*///////////////////////////////////////////////////////////////////////////////////////
+//                               Object3D                                              //
+//-------------------------------------------------------------------------------------//
+// Создает окно с просмоторщиком облака точек из PointCLoudStorage                     //
+// Разные объекты подсвечиваются разным цветом                                         //
+//                                                                                     //
+// ВНИМАНИЕ                                                                            //
+// Из-за особенностей GLUT работа нескольких экземпляров под вопросом                  //
+/*///////////////////////////////////////////////////////////////////////////////////////
 
 class GlutViewer
 {
 public:
 	GlutViewer(int argc, char** argv, PointCloudStorage* cloud);
+	~GlutViewer();
 	void UpdateGeometry(PointCloudStorage* cloud);
 
 private:
@@ -32,7 +44,11 @@ private:
 	float posX, posY, posZ;
 	float scale;
 	
-	std::thread renderThread;
+	//Поток и окно
+	std::thread renderThread;	//Поток, в котором выполняется код glut
+	int windowId;				//id окна
+	bool closed;				//Завершен ли поток
+	std::mutex closedMutex;		//Мьютекс для разделения доступа к closed.
 
 	//Функция потока
 	static void threadFunctionWrapper(int argc, char** argv, GlutViewer* instance);

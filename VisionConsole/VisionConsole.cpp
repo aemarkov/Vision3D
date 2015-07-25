@@ -1,7 +1,7 @@
 /*///////////////////////////////////////////////////////////////////////////////////////
-    Это консольное приложение, использующее VisionCore.                                //
-    Оно используется для разработки и отладки системы компьютерного зрения.            //
-*////////////////////////////////////////////////////////////////////////////////////////
+	Это консольное приложение, использующее VisionCore.                                //
+	Оно используется для разработки и отладки системы компьютерного зрения.            //
+	*////////////////////////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
 
@@ -44,16 +44,16 @@ struct StereoSGBMParams
 //Параметры для SteroBM
 struct StereoBMParams
 {
-	int blockSize =  0; 
-	int numDisparities =  0;
-	int preFilterSize =  0;
-	int preFilterCap =  0;
-	int minDisparity =  0;
-	int textureThreshold =  0;
-	int uniquenessRatio =  0;
-	int speckleWindowSize =  0;
-	int speckleRange =  0;
-	int disp12MaxDiff =  0;
+	int blockSize = 0;
+	int numDisparities = 0;
+	int preFilterSize = 0;
+	int preFilterCap = 0;
+	int minDisparity = 0;
+	int textureThreshold = 0;
+	int uniquenessRatio = 0;
+	int speckleWindowSize = 0;
+	int speckleRange = 0;
+	int disp12MaxDiff = 0;
 
 	Ptr<StereoBM> sbm;
 } stereoBMParams;
@@ -93,7 +93,6 @@ void displayTrackbarSeparate();
 //Событие изменения положения ползунка
 void callbackSGBM(int wtf, void* data);
 void callbackBM(int wtf, void* data);
-void callbackMaxDist(int wtf, void* data);
 void callbackMinCount(int wtf, void* data);
 
 //Масштабирует изображение и переводит его в ч\б
@@ -124,7 +123,7 @@ int main(int argc, _TCHAR* argv[])
 	}
 
 	//Параметры, переданные пользователем
-	int leftCameraIndex=-1, rightCameraIndex=-1;		//Индексы левой и правой веб-камер
+	int leftCameraIndex = -1, rightCameraIndex = -1;		//Индексы левой и правой веб-камер
 	bool useStereoSGBM = false;							//Использовать StereoBM или StereoSGBM
 	string calibFilename, stereoFilename;				//Имена файлов настроек
 	bool isCalib = false, isStereoConfig = false;		//Используются ли файлы конфигурации
@@ -154,7 +153,7 @@ int main(int argc, _TCHAR* argv[])
 			useStereoSGBM = true;
 			currentParam++;
 		}
-		else if (strcmp("-calib", argv[currentParam])==0)
+		else if (strcmp("-calib", argv[currentParam]) == 0)
 		{
 			calibFilename = string(argv[currentParam + 1]);
 			currentParam += 2;
@@ -205,7 +204,7 @@ int main(int argc, _TCHAR* argv[])
 		cout << "Enter calibration config filename *.yml or *.xml: ";
 		cin >> calibFilename;
 		sv.GetCalibData().Save(calibFilename.c_str());
-		
+
 	}
 
 	//Загружаем конфиг Stereo Matching'а
@@ -217,96 +216,102 @@ int main(int argc, _TCHAR* argv[])
 			loadSGBMSettings(stereoSGBMParams, stereoFilename.c_str());
 	}
 
-	while (true)
+	//Настройка параметров StereoMatching
+	auto data = CallbackData(sv, leftIm, rightIm);
+
+	//Отображение ползунков
+	if (!useStereoSGBM)
 	{
-		auto data = CallbackData(sv, leftIm, rightIm);
+		//StereoBM
+		displayTrackbarsBM(data);
+	}
+	else
+	{
+		//StereoSGBM
+		displayTrackbarsSGBM(data);
+	}
 
-		//Отображение ползунков
-		if (!useStereoSGBM)
-		{
-			//StereoBM
-			displayTrackbarsBM(data);
-		}
-		else
-		{
-			//StereoSGBM
-			displayTrackbarsSGBM(data);
-		}
-
-		//Получаем карту глубины
-		if (isRealtime)
-		{
-			//Захват изображений
-			cap1 >> leftIm;
-			cap2 >> rightIm;
-
-			//Уменьшение и перевод в ч\б
-			convertImage(leftIm, IMAGE_SCALE);
-			convertImage(rightIm, IMAGE_SCALE);
-
-			//Вызываем метод настройки и показа карты глубины
-			if (useStereoSGBM)
-				callbackSGBM(0, &data);
-			else
-				callbackBM(0, &data);
-
-
-			//Показ карты различий в вреальном времени
-			cout << "Showing disparity map in realtime\n";
-			if (disparityRealtime(cap1, cap2, sv))break;
-		}
-		else
-		{
-			//Строим карту глубины по изображениям (не в реальном времени)
-			//Даем пользователю поставить объект в нужное место
-			cout << "Press any key to capture\n";
-			aiming(cap1, cap2);
-
-			//Захват изображений
-			cap1 >> leftIm;
-			cap2 >> rightIm;
-
-			//Уменьшение и перевод в ч\б
-			convertImage(leftIm, IMAGE_SCALE);
-			convertImage(rightIm, IMAGE_SCALE);
-
-			//Вызываем метод настройки и показа карты глубины
-			if (useStereoSGBM)
-				callbackSGBM(0, &data);
-			else
-				callbackBM(0, &data);
-			
-			cout << "Tune up Stereo Matching params\n";
-			cout << "Pres any key to continue\n";
-			waitKey(0);
-		}
-
-		//Созранение облака точек
+	//Получаем карту глубины
+	if (isRealtime)
+	{
+		//Захват изображений
 		cap1 >> leftIm;
 		cap2 >> rightIm;
+
+		//Уменьшение и перевод в ч\б
 		convertImage(leftIm, IMAGE_SCALE);
 		convertImage(rightIm, IMAGE_SCALE);
 
-		displayTrackbarSeparate();
+		//Вызываем метод настройки и показа карты глубины
+		if (useStereoSGBM)
+			callbackSGBM(0, &data);
+		else
+			callbackBM(0, &data);
 
-		GlutViewer viewer(argc, argv, NULL);
-		separateData.sv = &sv;
-		separateData.viewer = &viewer;
-		separateData.left = leftIm;
-		separateData.right = rightIm;
-		viewer.UpdateGeometry(separateData.cloud);
-		callbackMaxDist(0, &separateData);
 
-		cout << "Tune up separating params\n";
+		//Показ карты различий в вреальном времени
+		cout << "Showing disparity map in realtime\n";
+		if (disparityRealtime(cap1, cap2, sv))return 0;;
+	}
+	else
+	{
+		//Строим карту глубины по изображениям (не в реальном времени)
+		//Даем пользователю поставить объект в нужное место
+		cout << "Press any key to capture\n";
+		aiming(cap1, cap2);
+
+		//Захват изображений
+		cap1 >> leftIm;
+		cap2 >> rightIm;
+
+		//Уменьшение и перевод в ч\б
+		convertImage(leftIm, IMAGE_SCALE);
+		convertImage(rightIm, IMAGE_SCALE);
+
+		//Вызываем метод настройки и показа карты глубины
+		if (useStereoSGBM)
+			callbackSGBM(0, &data);
+		else
+			callbackBM(0, &data);
+
+		cout << "Tune up Stereo Matching params\n";
 		cout << "Pres any key to continue\n";
 		waitKey(0);
-
-		cout << "Saving files...\n";
-		separateData.cloud->SaveToObj("cloud.obj");
-
-		cout << "Press esc to exit\n";
-		if (waitKey(0) == 27)break;
 	}
+
+	//Настройка параметров разделения объектов и фильтрации
+	//Делаем фотографии
+	cap1 >> leftIm;
+	cap2 >> rightIm;
+	convertImage(leftIm, IMAGE_SCALE);
+	convertImage(rightIm, IMAGE_SCALE);
+
+	//Отображаем ползунки для настройки
+	displayTrackbarSeparate();
+
+	//Настраиваем параметры для обработчиков и 
+	//создаем 3д просмоторщик
+	GlutViewer viewer(argc, argv, NULL);
+	separateData.sv = &sv;
+	separateData.viewer = &viewer;
+	separateData.left = leftIm;
+	separateData.right = rightIm;
+
+	//В цикле создаем облако точек  и осуществляем разделение его на объекты
+	//Выход по нажатию Enter
+	cout << "Tune up separation params\n";
+	cout << "Press any key to accept MaxDist parameter or Enter to save file\n";
+	int keycode = 0;
+	do
+	{
+		separateData.cloud = sv.CalculatePointCloud(leftIm, rightIm);
+		separateData.cloud->SeparateObjects(separateData.maxDist / 10.0f);
+		viewer.UpdateGeometry(separateData.cloud);
+		keycode = waitKey(0);
+	} while (keycode != 13);
+
+	cout << "Saving files...\n";
+	separateData.cloud->SaveToObj("cloud.obj");
 
 	//Сохранение файла конфигурации
 	if (!isStereoConfig)
@@ -332,6 +337,11 @@ int main(int argc, _TCHAR* argv[])
 
 	return 0;
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////                   ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ                    ///////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void displayHelp()
 {
@@ -362,7 +372,7 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 		//горизонтально отраженное
 		flip(img1, img1Flip, 1);
 		flip(img2, img2Flip, 1);
-		
+
 		//Совмещаем два изображения рядом
 		img = Mat(img1Flip.rows, img1Flip.cols + img2Flip.cols, CV_8UC3);
 		Mat left(img, Rect(0, 0, img1Flip.cols, img1Flip.rows));
@@ -410,7 +420,7 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 		//Уменьшение и перевод в ч\б
 		convertImage(leftIm, IMAGE_SCALE);
 		convertImage(rightIm, IMAGE_SCALE);
-		
+
 		//Добавляем в векторы
 		left.push_back(leftIm.clone());
 		right.push_back(rightIm.clone());
@@ -419,6 +429,32 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 	} while (!res);
 
 	sv.Calibrate(left, right, patternSize);
+}
+
+//Отображение карты в режиме реального времени
+bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
+{
+	Mat left, right, disparity;
+	int keyCode;
+
+	while (true)
+	{
+		//Захват изображений
+		cap1 >> left;
+		cap2 >> right;
+
+		//Перевод в черно-белое и масштабирование
+		convertImage(left, IMAGE_SCALE);
+		convertImage(right, IMAGE_SCALE);
+
+		//Построение и показ карты различий
+		sv.CalculatePointCloud(left, right, disparity, true);
+		imshow("disparity", disparity);
+
+		keyCode = waitKey(1);
+		if (keyCode != -1)break;
+	}
+	return keyCode == 27;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -452,18 +488,20 @@ void displayTrackbarsBM(CallbackData& data)
 	createTrackbar("Speckle range", "trackbars", &stereoBMParams.speckleRange, 100, callbackBM, (void*)&data);
 	createTrackbar("Disp12MaxDiff", "trackbars", &stereoBMParams.disp12MaxDiff, 100, callbackBM, (void*)&data);
 
-	
+
 }
 
 void displayTrackbarSeparate()
 {
-	createTrackbar("Max dist", "trackbars", &separateData.maxDist, 30, callbackMaxDist, &separateData);
+	createTrackbar("Max dist", "trackbars", &separateData.maxDist, 30, NULL, NULL);
 	createTrackbar("Min count", "trackbars", &separateData.minCount, 300, callbackMinCount, &separateData);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////                        СОБЫТИЯ ПОЛЗУНКОВ                     ///////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+//События ползунков настройи SGBM
 void callbackSGBM(int wtf, void* data)
 {
 	CallbackData cData = *(CallbackData*)data;
@@ -485,7 +523,7 @@ void callbackSGBM(int wtf, void* data)
 	stereoSGBMParams.sgbm->setSpeckleWindowSize(stereoSGBMParams.speckleWindowSize);
 	stereoSGBMParams.sgbm->setSpeckleRange(stereoSGBMParams.speckleRange);
 	//sgbm->setMode(cv::StereoSGBM::MODE_SGBM); // : StereoSGBM::MODE_HH*/
-	
+
 	//Расчет карты глубины и показ ее
 	Mat disparity;
 	cData.sv.SetStereoMatcher(stereoSGBMParams.sgbm);
@@ -493,6 +531,7 @@ void callbackSGBM(int wtf, void* data)
 	imshow("disparity", disparity);
 }
 
+//События ползунков настройки BM
 void callbackBM(int wtf, void* data)
 {
 	CallbackData cData = *(CallbackData*)data;
@@ -526,17 +565,10 @@ void callbackBM(int wtf, void* data)
 	cData.sv.SetStereoMatcher(stereoBMParams.sbm);
 	cData.sv.CalculatePointCloud(cData.left, cData.right, disparity, true);
 
-	imshow("disparity",disparity);
+	imshow("disparity", disparity);
 }
 
-void callbackMaxDist(int wtf, void* data)
-{
-	SeparateData* cData = (SeparateData*)data;
-	cData->cloud = cData->sv->CalculatePointCloud(cData->left, cData->right);
-	cData->cloud->SeparateObjects(cData->maxDist / 10.0);
-	cData->viewer->UpdateGeometry(cData->cloud);
-}
-
+//События ползуна минимального числа объектов
 void callbackMinCount(int wtf, void* data)
 {
 	SeparateData* cData = (SeparateData*)data;
@@ -544,29 +576,6 @@ void callbackMinCount(int wtf, void* data)
 
 	cData->cloud->DeleteNoise(cData->minCount);
 	cData->viewer->UpdateGeometry(cData->cloud);
-}
-
-//Отображение карты в режиме реального времени
-bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
-{
-	Mat left, right, disparity;
-	int keyCode;
-
-	while (true)
-	{
-		cap1 >> left;
-		cap2 >> right;
-
-		convertImage(left, IMAGE_SCALE);
-		convertImage(right, IMAGE_SCALE);
-
-		sv.CalculatePointCloud(left, right, disparity, true);
-		imshow("disparity", disparity);
-
-		keyCode = waitKey(1);
-		if (keyCode != -1)break;
-	}
-	return keyCode == 27;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

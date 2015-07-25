@@ -215,7 +215,6 @@ PointCloudStorage* StereoVision::_calculatePointCloud(const cv::Mat& left, const
 
 	//Строим карту различий
 	//Надо передавать изображения наоброт. ХЗ зачем
-#pragma omp parallel
 	stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
 
 	cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);

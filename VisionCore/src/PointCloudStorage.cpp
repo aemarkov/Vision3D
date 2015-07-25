@@ -1,4 +1,4 @@
-﻿#include "PointCloudStorage.h"
+#include "PointCloudStorage.h"
 
 PointCloudStorage::PointCloudStorage()
 {

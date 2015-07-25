@@ -14,8 +14,27 @@ GlutViewer::GlutViewer(int argc, char** argv, PointCloudStorage* cloud)
 	this->cloud = cloud;
 
 	//Запуск потока
+	isRunning = true;
 	renderThread = std::thread(threadFunctionWrapper, argc, argv, this);
 	renderThread.detach();
+}
+
+//Деструктор - закрывает окно
+GlutViewer::~GlutViewer()
+{
+	//Останавливаем главный цилк
+	glutLeaveMainLoop();
+
+	//Ожидаем остановки
+	bool isClosed;
+	do
+	{
+		closedMutex.lock();
+		isClosed = closed;
+		closedMutex.unlock();
+	} while (!isClosed);
+
+	//glutDestroyWindow(windowId);
 }
 
 void GlutViewer::UpdateGeometry(PointCloudStorage* cloud)
@@ -32,15 +51,17 @@ void GlutViewer::threadFunctionWrapper(int argc, char** argv, GlutViewer* instan
 	instance->threadFunction(argc, argv);
 }
 
+
 void GlutViewer::threadFunction(int argc, char** argv)
 {
 	//Инициализация
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+	glutSetOption(GLUT_ACTION_ON_WINDOW_CLOSE, GLUT_ACTION_CONTINUE_EXECUTION);
 
 	//Создание окна
 	glutInitWindowSize(800, 800);
-	int windowId = glutCreateWindow("3D View");
+	windowId = glutCreateWindow("3D View");
 
 	//Передаем в статическую функцию-обработчик указатель на класс
 	glutSetWindowData(this);
@@ -51,6 +72,11 @@ void GlutViewer::threadFunction(int argc, char** argv)
 	glutKeyboardFunc(generalKeyPressedWrapper);
 	glutIdleFunc(idleWrapper);
 	glutMainLoop();
+
+	//Сообщаем о том, что поток остановлен
+	closedMutex.lock();
+	closed = true;
+	closedMutex.unlock();
 }
 
 
@@ -74,13 +100,15 @@ void GlutViewer::renderSceneWrapper(void)
 }
 
 //Функция рендера
-void GlutViewer::renderScene() {
-	
+void GlutViewer::renderScene()
+{
+
+	if (cloud == NULL)
+		return;
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 	glPushMatrix();
-
-	if (cloud == NULL)return;
 
 	//Трансформации сцены
 	glRotated(rotX, 1, 0, 0);
@@ -131,7 +159,6 @@ void GlutViewer::renderScene() {
 	//glVertex3f(0, 0, 0.5);
 
 	glEnd();
-
 	glutSwapBuffers();
 }
 
