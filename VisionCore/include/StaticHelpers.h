@@ -35,6 +35,36 @@ public:
 			stream << "\n";
 		}
 	}
+
+	static cv::Mat average_disparity(std::vector<cv::Mat>& disparities)
+	{
+		cv::Mat example_mat = disparities[0];
+		cv::Mat average_disparity(example_mat);			//Среднее арифметическое всех элементов disparities
+
+		int disparities_count = disparities.size(); //Число всех элементов disparities
+
+		//Размеры каждой из матриц disparities
+		int cols = example_mat.cols;
+		int rows = example_mat.rows;
+
+		//Среднее значение элемента матрицы с координатами x, y
+		float average_element_value = 0.0;
+
+		//Усреднение по каждой точке каждого элемента disparity
+		for (int x = 0; x < cols; x++)
+		{
+			for (int y = 0; y < rows; y++)
+			{
+				//Среднее арифметическое для всех элементов с координатами x, y
+				for (int i = 0; i < disparities_count; i++)
+					average_element_value += disparities[i].at<float>(x, y);
+
+				average_disparity.at<float>(x, y) = average_element_value / disparities_count;
+			}
+		}
+
+		return average_disparity;
+	}
 };
 
 #endif
