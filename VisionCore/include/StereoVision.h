@@ -52,13 +52,30 @@ public:
 	StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const std::vector<cv::Mat>& right, cv::Size patternSize);
 
 	/* Построение облака точек по двум изображениям
+	* param[in] left - левые изображения с откалиброванной камеры
+	* param[in] right - правые изображения с откалиброванной камеры
+	* param[out] disparity - карта смещения для визуализации
+	* param[in] disparityOnly - строить карту глубины без облака точек
+	* result - облако точек
+	*/
+	PointCloudStorage* CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, cv::Mat& disparity, bool disparityOnly = false) const;
+
+	/* Построение облака точек по двум изображениям
+	* param[in] left - левые изображения с откалиброванной камеры
+	* param[in] right - правые изображения с откалиброванной камеры
+	* param[in] disparityOnly - строить карту глубины без облака точек
+	* result - облако точек
+	*/
+	PointCloudStorage* CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool disparityOnly = false) const;
+
+	/* Построение облака точек по двум изображениям
 	* param[in] left - левое изображение с откалиброванной камеры
 	* param[in] right - правое изображение с откалиброванной камеры
 	* param[out] disparity - карта смещения для визуализации
 	* param[in] disparityOnly - строить карту глубины без облака точек
 	* result - облако точек
 	*/
-	PointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Mat& disparity, bool disparityOnly = false) const;
+	PointCloudStorage* CalculatePointCloud(const cv::Mat & left, const cv::Mat & right, cv::Mat& disparity, bool disparityOnly = false) const;
 
 	/* Построение облака точек по двум изображениям
 	* param[in] left - левое изображение с откалиброванной камеры
@@ -66,7 +83,7 @@ public:
 	* param[in] disparityOnly - строить карту глубины без облака точек
 	* result - облако точек
 	*/
-	PointCloudStorage* CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool disparityOnly = false) const;
+	PointCloudStorage* CalculatePointCloud(const cv::Mat & left, cv::Mat & right, bool disparityOnly = false) const;
 
 	//Возвращает параметры калибровки
 	StereoCalibData GetCalibData();
@@ -96,7 +113,7 @@ private:
 
 	//Строит облако точек
 	//Соответствующие публичные методы - обертка вокруг него, для красоты
-	PointCloudStorage* _calculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool noDisparityOut, cv::Mat& disparity, bool disparityOnly = false) const;
+	PointCloudStorage* StereoVision::_calculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const;
 };
 
 #endif

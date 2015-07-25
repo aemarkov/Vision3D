@@ -32,13 +32,7 @@ StereoVision::StereoVision(StereoCalibData calibData, cv::Ptr<cv::StereoMatcher>
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-/* Калибровка стерео-камеры (пары камер)
-* param[in] left - изображение с левой камеры (CV_8UC1 - серое)
-* param[in] right - изображение с правой камеры
-* param[in] patternSize - число углов шахматной доски
-(число квадратов на стороне - 1)
-* result - необходимый набор параметров для построения облака точек
-*/
+// Калибровка стерео-камеры (пары камер)
 StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const std::vector<cv::Mat>& right, cv::Size patternSize)
 {
 	/* Алгоритм стерео-калибровки:
@@ -164,70 +158,95 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 }
 
 
-/* Построение облака точек по двум изображениям
-* param[in] left - левое изображение с откалиброванной камеры
-* param[in] right - правое изображение с откалиброванной камеры
-* param[out] disparity - карта смещения для визуализации
-* param[in] disparityOnly - строить карту глубины без облака точек
-* result - облако точек
-*/
-PointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, cv::Mat& disparity, bool disparityOnly) const
+// Построение облака точек по двум изображениям
+PointCloudStorage* StereoVision::CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, cv::Mat& disparity, bool disparityOnly) const
 {
 	return _calculatePointCloud(left, right, false, disparity, disparityOnly);
 }
 
-/* Построение облака точек по двум изображениям
-* param[in] left - левое изображение с откалиброванной камеры
-* param[in] right - правое изображение с откалиброванной камеры
-* param[in] disparityOnly - строить карту глубины без облака точек
-* result - облако точек
-*/
-PointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool disparityOnly) const
+// Построение облака точек по двум изображениям
+PointCloudStorage* StereoVision::CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool disparityOnly) const
 {
 	cv::Mat mat;
 	return _calculatePointCloud(left, right, true, mat, disparityOnly);
 }
 
+
+// Построение облака точек по двум изображениям
+PointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat & left, const cv::Mat & right, cv::Mat& disparity, bool disparityOnly) const
+{
+	std::vector<cv::Mat> lefts, rights;
+	lefts.push_back(left);
+	rights.push_back(right);
+	return CalculatePointCloud(lefts, rights, disparity, disparityOnly);
+}
+
+//Построение облака точек по двум изображениям
+PointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat & left, cv::Mat & right, bool disparityOnly) const
+{
+	std::vector<cv::Mat> lefts, rights;
+	lefts.push_back(left);
+	rights.push_back(right);
+	return CalculatePointCloud(lefts, rights, disparityOnly);
+}
+
+
 //Строит облако точек
 //Соответствующие публичные методы - обертка вокруг него, для красоты
-PointCloudStorage* StereoVision::_calculatePointCloud(const cv::Mat& left, const cv::Mat& right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const
+PointCloudStorage* StereoVision::_calculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const
 {
-	cv::Mat leftRemaped, rightRemaped;
-	cv::Mat leftGrey, rightGrey;
-	cv::Mat disparity, normalDisparity;
+	std::vector <cv::Mat> disparities;
+	int pairs_count = left.size(); //Число пар изображений
+
+	//Для каждого находим disparity
+	for (int pair_index = 0; pair_index < pairs_count; pair_index++)
+	{
+		cv::Mat left_image  = left[pair_index],
+				right_image = right[pair_index];
+
+		cv::Mat leftRemaped, rightRemaped;
+		cv::Mat leftGrey, rightGrey;
+		cv::Mat disparity, normalDisparity;
+
+
+		//Цветное изображение обесцвечиваем
+		if (left_image.channels() == 3)
+			cv::cvtColor(left, leftGrey, CV_RGB2GRAY);
+		else
+			leftGrey = left_image;
+
+		if (right_image.channels() == 3)
+			cv::cvtColor(right, rightGrey, CV_RGB2GRAY);
+		else
+			rightGrey = right_image;
+
+		//Выпрямляем
+		cv::remap(leftGrey, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+		cv::remap(rightGrey, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+
+		//Строим карту различий
+		//Надо передавать изображения наоброт. ХЗ зачем
+		stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
+		cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);
+
+		disparities.push_back(normalDisparity.clone());
+	}
+
+	//Усредняем все карты неровностей
+	cv::Mat normal_disparity = StaticHelpers::average_disparity(disparities);
 	cv::Mat cloud;
 
+	cv::imshow("avd", normal_disparity);
 
-	//Цветное изображение обесцвечиваем
-	if (left.channels() == 3)
-		cv::cvtColor(left, leftGrey, CV_RGB2GRAY);
-	else
-		leftGrey = left;
-
-	if (right.channels() == 3)
-		cv::cvtColor(right, rightGrey, CV_RGB2GRAY);
-	else
-		rightGrey = right;
-
-	//Выпрямляем
-	cv::remap(leftGrey, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
-	cv::remap(rightGrey, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
-
-	//Строим карту различий
-	//Надо передавать изображения наоброт. ХЗ зачем
-	stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
-
-	cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);
-	
 	if (!noDisparityOut)
 	{
-		disparityResult = normalDisparity.clone();
+		disparityResult = normal_disparity.clone();
 	}
 
 	if (!disparityOnly)
 	{
 		//Создаем облако точек
-		cv::reprojectImageTo3D(normalDisparity, cloud, calibData.Q, true);
+		cv::reprojectImageTo3D(normal_disparity, cloud, calibData.Q, true);
 		return new PointCloudStorage(cloud.clone());
 	}
 	else
@@ -236,6 +255,7 @@ PointCloudStorage* StereoVision::_calculatePointCloud(const cv::Mat& left, const
 		return NULL;
 	}
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////                         ГЕТТЕРЫ И СЕТТЕРЫ                  //////////////////////

@@ -63,8 +63,8 @@ struct SeparateData
 {
 	StereoVision* sv;
 	GlutViewer* viewer;
-	Mat left;
-	Mat right;
+	vector<Mat> left;
+	vector<Mat> right;
 	PointCloudStorage* cloud = NULL;
 	int maxDist = 1;
 	int minCount = 10;
@@ -279,23 +279,32 @@ int main(int argc, _TCHAR* argv[])
 		waitKey(0);
 	}
 
-	//Настройка параметров разделения объектов и фильтрации
-	//Делаем фотографии
-	cap1 >> leftIm;
-	cap2 >> rightIm;
-	convertImage(leftIm, IMAGE_SCALE);
-	convertImage(rightIm, IMAGE_SCALE);
 
 	//Отображаем ползунки для настройки
 	displayTrackbarSeparate();
+
+	//Настройка параметров разделения объектов и фильтрации
+	//Делаем фотографии
+	vector<Mat> lefts, rights;
+	for (int i = 0; i < 100; i++)
+	{
+		cap1 >> leftIm;
+		cap2 >> rightIm;
+		convertImage(leftIm, IMAGE_SCALE);
+		convertImage(rightIm, IMAGE_SCALE);
+		lefts.push_back(leftIm.clone());
+		rights.push_back(rightIm.clone());
+		//waitKey(10);
+	}
+
 
 	//Настраиваем параметры для обработчиков и 
 	//создаем 3д просмоторщик
 	GlutViewer viewer(argc, argv, NULL);
 	separateData.sv = &sv;
 	separateData.viewer = &viewer;
-	separateData.left = leftIm;
-	separateData.right = rightIm;
+	separateData.left = lefts;
+	separateData.right = rights;;
 
 	//В цикле создаем облако точек  и осуществляем разделение его на объекты
 	//Выход по нажатию Enter
@@ -304,14 +313,18 @@ int main(int argc, _TCHAR* argv[])
 	int keycode = 0;
 	do
 	{
-		separateData.cloud = sv.CalculatePointCloud(leftIm, rightIm);
+		separateData.cloud = sv.CalculatePointCloud(lefts, rights);
 		separateData.cloud->SeparateObjects(separateData.maxDist / 10.0f);
 		viewer.UpdateGeometry(separateData.cloud);
 		keycode = waitKey(0);
 	} while (keycode != 13);
 
 	cout << "Saving files...\n";
-	separateData.cloud->SaveToObj("cloud.obj");
+	separateData.cloud->SaveToObj("cloud_0.obj");
+
+	//separateData.cloud = sv.CalculatePointCloud(leftIm, rightIm);
+	//separateData.cloud->SeparateObjects(separateData.maxDist / 10.0f);
+	//separateData.cloud->SaveToObj("cloud_1.obj");
 
 	//Сохранение файла конфигурации
 	if (!isStereoConfig)
@@ -435,20 +448,29 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
 {
 	Mat left, right, disparity;
+	vector<Mat> lefts, rights;
 	int keyCode;
 
 	while (true)
 	{
-		//Захват изображений
-		cap1 >> left;
-		cap2 >> right;
+		lefts.clear();
+		rights.clear();
+		for (int i = 0; i < 1; i++)
+		{
+			//Захват изображений
+			cap1 >> left;
+			cap2 >> right;
 
-		//Перевод в черно-белое и масштабирование
-		convertImage(left, IMAGE_SCALE);
-		convertImage(right, IMAGE_SCALE);
+			//Перевод в черно-белое и масштабирование
+			convertImage(left, IMAGE_SCALE);
+			convertImage(right, IMAGE_SCALE);
+			lefts.push_back(left);
+			rights.push_back(right);
+			//waitKey(1);
+		}
 
 		//Построение и показ карты различий
-		sv.CalculatePointCloud(left, right, disparity, true);
+		sv.CalculatePointCloud(lefts, rights, disparity, true);
 		imshow("disparity", disparity);
 
 		keyCode = waitKey(1);

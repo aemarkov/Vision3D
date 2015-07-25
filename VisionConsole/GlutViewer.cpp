@@ -14,7 +14,6 @@ GlutViewer::GlutViewer(int argc, char** argv, PointCloudStorage* cloud)
 	this->cloud = cloud;
 
 	//Запуск потока
-	isRunning = true;
 	renderThread = std::thread(threadFunctionWrapper, argc, argv, this);
 	renderThread.detach();
 }
@@ -26,13 +25,13 @@ GlutViewer::~GlutViewer()
 	glutLeaveMainLoop();
 
 	//Ожидаем остановки
-	bool isClosed;
+	/*bool isClosed;
 	do
 	{
 		closedMutex.lock();
 		isClosed = closed;
 		closedMutex.unlock();
-	} while (!isClosed);
+	} while (!isClosed);*/
 
 	//glutDestroyWindow(windowId);
 }
@@ -74,9 +73,9 @@ void GlutViewer::threadFunction(int argc, char** argv)
 	glutMainLoop();
 
 	//Сообщаем о том, что поток остановлен
-	closedMutex.lock();
-	closed = true;
-	closedMutex.unlock();
+	///closedMutex.lock();
+	//closed = true;
+	//closedMutex.unlock();
 }
 
 
