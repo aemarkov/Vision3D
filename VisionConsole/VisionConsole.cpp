@@ -99,7 +99,7 @@ void callbackMinCount(int wtf, void* data);
 void convertImage(Mat& image, float scale);
 
 //Выполняет калибровку
-void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize);
+bool calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize);
 
 //Вывод карты различий в реальном времени
 bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv);
@@ -197,13 +197,20 @@ int main(int argc, _TCHAR* argv[])
 		cout << "Enter pattern size width, height: ";
 		cin >> w >> h;
 
-		calibrate(cap1, cap2, sv, Size(w, h));
+		if (calibrate(cap1, cap2, sv, Size(w, h)))
+		{
 
-		//TODO: показать результат
+			//TODO: показать результат
 
-		cout << "Enter calibration config filename *.yml or *.xml: ";
-		cin >> calibFilename;
-		sv.GetCalibData().Save(calibFilename.c_str());
+			cout << "Enter calibration config filename *.yml or *.xml: ";
+			cin >> calibFilename;
+			sv.GetCalibData().Save(calibFilename.c_str());
+		}
+		else
+		{
+			cout << "Calibration failed";
+			return 0;
+		}
 
 	}
 
@@ -286,7 +293,7 @@ int main(int argc, _TCHAR* argv[])
 	//Настройка параметров разделения объектов и фильтрации
 	//Делаем фотографии
 	vector<Mat> lefts, rights;
-	for (int i = 0; i < 100; i++)
+	for (int i = 0; i < 1; i++)
 	{
 		cap1 >> leftIm;
 		cap2 >> rightIm;
@@ -415,7 +422,7 @@ void convertImage(Mat& image, float scale)
 
 
 //Выполняет калибровку
-void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize)
+bool calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize)
 {
 	Mat leftIm, rightIm;			//Изображения с веб-камер
 	vector<Mat> left, right;		//Списки изображений
@@ -441,7 +448,7 @@ void calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 		waitKey(500);
 	} while (!res);
 
-	sv.Calibrate(left, right, patternSize);
+	return sv.Calibrate(left, right, patternSize);
 }
 
 //Отображение карты в режиме реального времени

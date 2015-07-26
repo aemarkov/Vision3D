@@ -33,7 +33,7 @@ StereoVision::StereoVision(StereoCalibData calibData, cv::Ptr<cv::StereoMatcher>
 
 
 // Калибровка стерео-камеры (пары камер)
-StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const std::vector<cv::Mat>& right, cv::Size patternSize)
+bool StereoVision::Calibrate(const std::vector<cv::Mat>& left, const std::vector<cv::Mat>& right, cv::Size patternSize)
 {
 	/* Алгоритм стерео-калибровки:
 	1. Находим на них шахматную доску и определяем углы
@@ -130,6 +130,9 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 		}
 	}
 
+	//Провека, что углы были найдены
+	if (objectPoints.size() == 0)return false;
+
 	//3. --------------------------- Стерео калибровка --------------------------------------------------------------------------
 	//Документация: http://goo.gl/mKCH63
 	stereoCalibrate(objectPoints, imagePointsLeft, imagePointsRight,
@@ -154,7 +157,7 @@ StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const 
 
 	_createUndistortRectifyMaps(calibData);
 
-	return calibData;
+	return true;
 }
 
 
@@ -233,10 +236,8 @@ PointCloudStorage* StereoVision::_calculatePointCloud(const std::vector<cv::Mat>
 	}
 
 	//Усредняем все карты неровностей
-	cv::Mat normal_disparity = StaticHelpers::average_disparity(disparities);
+	cv::Mat normal_disparity = average_disparity(disparities);
 	cv::Mat cloud;
-
-	cv::imshow("avd", normal_disparity);
 
 	if (!noDisparityOut)
 	{
@@ -305,4 +306,39 @@ void StereoVision::_createUndistortRectifyMaps(StereoCalibData& data)
 {
 	cv::initUndistortRectifyMap(data.LeftCameraMatrix, data.LeftCameraDistortions, data.LeftCameraRot, data.LeftCameraRectifiedProjection, data.ImageSize, CV_32FC1, data.LeftMapX, data.LeftMapY);
 	cv::initUndistortRectifyMap(data.RightCameraMatrix, data.RightCameraDistortions, data.RightCameraRot, data.RightCameraRectifiedProjection, data.ImageSize, CV_32FC1, data.RightMapX, data.RightMapY);
+}
+
+cv::Mat StereoVision::average_disparity(std::vector<cv::Mat>& disparities) const
+{
+	cv::Mat example_mat = disparities[0];
+	cv::Mat average_disparity(example_mat);			//Среднее арифметическое всех элементов disparities
+
+	int disparities_count = disparities.size();		//Число всех элементов disparities
+
+	//Размеры каждой из матриц disparities
+	int cols = example_mat.cols;
+	int rows = example_mat.rows;
+
+	cv::Mat d = disparities[0];
+	auto a = d.type();
+
+	//Среднее значение элемента матрицы с координатами x, y
+	unsigned int average_element_value;
+
+	//Усреднение по каждой точке каждого элемента disparity
+	for (int x = 0; x < cols; x++)
+	{
+		for (int y = 0; y < rows; y++)
+		{
+			//Среднее арифметическое для всех элементов с координатами x, y
+			average_element_value = 0;
+			for (int i = 0; i < disparities_count; i++)
+				average_element_value += disparities[i].at<unsigned char>(y, x);
+
+			average_disparity.at<unsigned char>(y, x) = average_element_value / (float)disparities_count;
+			//average_disparity.at<char>(y, x) = disparities[0].at<char>(y, x);
+		}
+	}
+
+	return average_disparity;
 }

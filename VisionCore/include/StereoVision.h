@@ -47,9 +47,9 @@ public:
 	* param[in] right - изображение с правой камеры
 	* param[in] patternSize - число углов шахматной доски
 	(число квадратов на стороне - 1)
-	* result - необходимый набор параметров для построения облака точек
+	* result - успех калибровки
 	*/
-	StereoCalibData StereoVision::Calibrate(const std::vector<cv::Mat>& left, const std::vector<cv::Mat>& right, cv::Size patternSize);
+	bool Calibrate(const std::vector<cv::Mat>& left, const std::vector<cv::Mat>& right, cv::Size patternSize);
 
 	/* Построение облака точек по двум изображениям
 	* param[in] left - левые изображения с откалиброванной камеры
@@ -107,13 +107,19 @@ private:
 
 	//Создает матрицы исправленяи искажений
 	void _createUndistortRectifyMaps(StereoCalibData& data);
+	
+	//Усредняет карту различий
+	cv::Mat average_disparity(std::vector<cv::Mat>& disparities) const;
 
-	//Устраняет переворот найденных точек
-	void _fixChessboardCorners(std::vector<cv::Point2f>& corners, cv::Size patternSize);
-
-	//Строит облако точек
-	//Соответствующие публичные методы - обертка вокруг него, для красоты
-	PointCloudStorage* StereoVision::_calculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const;
+	/* Строит облако точек по парам изображений
+	 * param[in] left - вектор изображений с левой камеры
+	 * param[in] right - вектор изображений с правой камеры
+	 * param[in] noDisparityOut - флаг, указывающий, что не надо копировать карту различий в disparityResult
+	 * param[out] disparityResult - результирующая карта различий
+	 * param[in] - disparityOnly - генерировать только карту различий без облака точек
+	 * result - укзаатель на облако точек
+	*/
+	PointCloudStorage* _calculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const;
 };
 
 #endif

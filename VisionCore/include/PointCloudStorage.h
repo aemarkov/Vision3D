@@ -69,6 +69,9 @@ private:
 		int width, height;
 	} _children;
 
+	//Минимальное число потомков у объекта
+	int minCount;
+
 	std::vector<BaseObject3D*> _childrenList;
 	std::vector<BaseObject3D*> _filteredChildrenList;
 

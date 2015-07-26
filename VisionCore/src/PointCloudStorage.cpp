@@ -31,6 +31,7 @@ PointCloudStorage::PointCloudStorage(cv::Mat cloud)
 		}
 	}
 
+	minCount = 0;
 }
 
 //Удаляет объект
@@ -170,12 +171,14 @@ void PointCloudStorage::SeparateObjects(float maxDist)
 	_children.childrenArray = tempArr;
 	cv::imshow("wtf", img);
 
-	DeleteNoise(0);
+	DeleteNoise(minCount);
 }
 
 //Удаляет объекты с числом потомков меньше заданного
 void PointCloudStorage::DeleteNoise(int minCount)
 {
+	this->minCount = minCount;
+
 	_filteredChildrenList.clear();
 	for (std::vector<BaseObject3D*>::iterator it = _childrenList.begin(); it != _childrenList.end(); ++it)
 	{
