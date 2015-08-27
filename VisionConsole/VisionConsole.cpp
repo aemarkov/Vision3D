@@ -199,18 +199,12 @@ int main(int argc, _TCHAR* argv[])
 
 		if (calibrate(cap1, cap2, sv, Size(w, h)))
 		{
-
-			//TODO: показать результат
-
 			cout << "Enter calibration config filename *.yml or *.xml: ";
 			cin >> calibFilename;
 			sv.GetCalibData().Save(calibFilename.c_str());
 		}
 		else
-		{
-			cout << "Calibration failed";
 			return 0;
-		}
 
 	}
 
@@ -327,11 +321,8 @@ int main(int argc, _TCHAR* argv[])
 	} while (keycode != 13);
 
 	cout << "Saving files...\n";
-	separateData.cloud->SaveToObj("cloud_0.obj");
+	separateData.cloud->SaveToObj("cloud.obj");
 
-	//separateData.cloud = sv.CalculatePointCloud(leftIm, rightIm);
-	//separateData.cloud->SeparateObjects(separateData.maxDist / 10.0f);
-	//separateData.cloud->SaveToObj("cloud_1.obj");
 
 	//Сохранение файла конфигурации
 	if (!isStereoConfig)
@@ -424,31 +415,60 @@ void convertImage(Mat& image, float scale)
 //Выполняет калибровку
 bool calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize)
 {
+	bool isSuccess;					//Калибровка удачная
+	bool isGood;					//Результаты калибровки хорошие
+	string answer;					//Отвтет пользователя
+
 	Mat leftIm, rightIm;			//Изображения с веб-камер
 	vector<Mat> left, right;		//Списки изображений
 	bool res;
 
 	do
 	{
-		//Показ видео
-		res = aiming(cap1, cap2);
+		left.clear();
+		right.clear();
+		do
+		{
+			//Показ видео
+			res = aiming(cap1, cap2);
 
-		//Захват изображений
-		cap1 >> leftIm;
-		cap2 >> rightIm;
+			//Захват изображений
+			cap1 >> leftIm;
+			cap2 >> rightIm;
 
-		//Уменьшение и перевод в ч\б
-		convertImage(leftIm, IMAGE_SCALE);
-		convertImage(rightIm, IMAGE_SCALE);
+			//Уменьшение и перевод в ч\б
+			convertImage(leftIm, IMAGE_SCALE);
+			convertImage(rightIm, IMAGE_SCALE);
 
-		//Добавляем в векторы
-		left.push_back(leftIm.clone());
-		right.push_back(rightIm.clone());
+			//Добавляем в векторы
+			left.push_back(leftIm.clone());
+			right.push_back(rightIm.clone());
 
-		waitKey(500);
-	} while (!res);
+			waitKey(500);
+		} while (!res);
 
-	return sv.Calibrate(left, right, patternSize);
+		isSuccess = sv.Calibrate(left, right, patternSize);
+
+		if (isSuccess)
+		{
+			//Показываем результат
+			sv.Rectify(leftIm, rightIm);
+			imshow("left rectified", leftIm);
+			imshow("right rectified", rightIm);
+			waitKey(0);
+			destroyWindow("left rectified");
+			destroyWindow("right rectified");
+		}
+		else
+			cout << "Calibration failed\n";
+		
+		cout << "Save this result? ";
+		cin >> answer;
+		isGood = answer == "yes";
+
+	} while (!isGood);
+
+	return isSuccess;
 }
 
 //Отображение карты в режиме реального времени

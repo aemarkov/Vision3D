@@ -214,9 +214,9 @@ void PointCloudStorage::_saveFromObject(Object3D* object, std::ofstream& stream)
 void PointCloudStorage::SaveToObj(const char* filename) const
 {
 	std::ofstream stream(filename);
-	for (int i = 0; i < _childrenList.size(); i++)
+	for (int i = 0; i < _filteredChildrenList.size(); i++)
 	{
-		BaseObject3D* child = _childrenList[i];
+		BaseObject3D* child = _filteredChildrenList[i];
 		if (child != NULL)
 		{
 			if (child->GetType() == Object3DType::TYPE_POINT)

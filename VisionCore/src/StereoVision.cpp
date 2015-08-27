@@ -160,6 +160,29 @@ bool StereoVision::Calibrate(const std::vector<cv::Mat>& left, const std::vector
 	return true;
 }
 
+//Выравнивает изображения
+void StereoVision::Rectify(cv::Mat& left, cv::Mat& right)
+{
+	cv::Mat leftGrey, rightGrey, leftRemaped, rightRemaped;
+
+	//Цветное изображение обесцвечиваем
+	if (left.channels() == 3)
+		cv::cvtColor(left, leftGrey, CV_RGB2GRAY);
+	else
+		leftGrey = left;
+
+	if (right.channels() == 3)
+		cv::cvtColor(right, rightGrey, CV_RGB2GRAY);
+	else
+		rightGrey = right;
+
+	//Выпрямляем
+	cv::remap(leftGrey, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+	cv::remap(rightGrey, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+
+	left = leftRemaped.clone();
+	right = rightRemaped.clone();
+}
 
 // Построение облака точек по двум изображениям
 PointCloudStorage* StereoVision::CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, cv::Mat& disparity, bool disparityOnly) const

@@ -51,6 +51,9 @@ public:
 	*/
 	bool Calibrate(const std::vector<cv::Mat>& left, const std::vector<cv::Mat>& right, cv::Size patternSize);
 
+	//Выравнивает изображения
+	void Rectify(cv::Mat& left, cv::Mat& right);
+
 	/* Построение облака точек по двум изображениям
 	* param[in] left - левые изображения с откалиброванной камеры
 	* param[in] right - правые изображения с откалиброванной камеры
@@ -94,7 +97,7 @@ public:
 	//Возвращает объект StereoMatcher
 	cv::Ptr<cv::StereoMatcher> GetStereoMatcher();
 
-	//Задает объект StereoBM
+	//Задает объект StereoMathcer
 	void SetStereoMatcher(cv::Ptr<cv::StereoMatcher> stereoMatcher);
 
 	StereoVision& operator=(const StereoVision& ohter);
