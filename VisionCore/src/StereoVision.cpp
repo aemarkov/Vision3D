@@ -185,21 +185,21 @@ void StereoVision::Rectify(cv::Mat& left, cv::Mat& right)
 }
 
 // Построение облака точек по двум изображениям
-PointCloudStorage* StereoVision::CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, cv::Mat& disparity, bool disparityOnly) const
+pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, cv::Mat& disparity, bool disparityOnly) const
 {
 	return _calculatePointCloud(left, right, false, disparity, disparityOnly);
 }
 
 // Построение облака точек по двум изображениям
-PointCloudStorage* StereoVision::CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool disparityOnly) const
+pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right) const
 {
 	cv::Mat mat;
-	return _calculatePointCloud(left, right, true, mat, disparityOnly);
+	return _calculatePointCloud(left, right, true, mat, false);
 }
 
 
 // Построение облака точек по двум изображениям
-PointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat & left, const cv::Mat & right, cv::Mat& disparity, bool disparityOnly) const
+pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::CalculatePointCloud(const cv::Mat & left, const cv::Mat & right, cv::Mat& disparity, bool disparityOnly) const
 {
 	std::vector<cv::Mat> lefts, rights;
 	lefts.push_back(left);
@@ -208,18 +208,19 @@ PointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat & left, const
 }
 
 //Построение облака точек по двум изображениям
-PointCloudStorage* StereoVision::CalculatePointCloud(const cv::Mat & left, cv::Mat & right, bool disparityOnly) const
+pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::CalculatePointCloud(const cv::Mat & left, cv::Mat & right) const
 {
 	std::vector<cv::Mat> lefts, rights;
 	lefts.push_back(left);
 	rights.push_back(right);
-	return CalculatePointCloud(lefts, rights, disparityOnly);
+	cv::Mat mat;
+	return CalculatePointCloud(lefts, rights, mat, false);
 }
 
 
 //Строит облако точек
 //Соответствующие публичные методы - обертка вокруг него, для красоты
-PointCloudStorage* StereoVision::_calculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const
+pcl::PointCloud<pcl::PointXYZ>::Ptr  StereoVision::_calculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const
 {
 	std::vector <cv::Mat> disparities;
 	int pairs_count = left.size(); //Число пар изображений
@@ -271,7 +272,7 @@ PointCloudStorage* StereoVision::_calculatePointCloud(const std::vector<cv::Mat>
 	{
 		//Создаем облако точек
 		cv::reprojectImageTo3D(normal_disparity, cloud, calibData.Q, true);
-		return new PointCloudStorage(cloud.clone());
+		return _matToPointCloud(cloud);
 	}
 	else
 	{
@@ -364,4 +365,33 @@ cv::Mat StereoVision::average_disparity(std::vector<cv::Mat>& disparities) const
 	}
 
 	return average_disparity;
+}
+
+//Преобразует облако точек из cv::Mat в pcl::PointCloud
+pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::_matToPointCloud(const cv::Mat mat) const
+{
+	int width = mat.cols;
+	int height = mat.rows;
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>(width*height, 1));
+
+	int k = 0;
+	for (int i = 0; i < height; i++)
+	{
+		for (int j = 0; j < width; j++)
+		{
+			auto point = mat.at<cv::Vec3f>(i, j);
+			if (!isinf(point[0]) && !isinf(point[1]) && !isinf(point[2]))
+			{
+				cloud->points[k].x = point[0];
+				cloud->points[k].y = point[1];
+				cloud->points[k].z = point[2];
+				k++;
+			}
+
+		}
+		
+	}
+
+	return cloud;
 }

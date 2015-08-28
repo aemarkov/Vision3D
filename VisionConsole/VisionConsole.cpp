@@ -373,14 +373,7 @@ int main(int argc, _TCHAR* argv[])
 	convertImage(leftIm, 0.5);
 	convertImage(rightIm, 0.5);
 
-	PointCloudStorage* pc = sv.CalculatePointCloud(leftIm, rightIm);
-	
-	//pc->SaveToObj("cloud.obj");
-	int pointCloudSize = pc->ChildrenCount();
-
-	PointCloud<PointXYZ>::Ptr cloud (new PointCloud<PointXYZ>(pointCloudSize, 1));
-
-	convertToPCL(cloud, pc);
+	PointCloud<PointXYZ>::Ptr cloud = sv.CalculatePointCloud(leftIm, rightIm);
 
 	pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
 	viewer.showCloud(cloud);
@@ -391,42 +384,6 @@ int main(int argc, _TCHAR* argv[])
 	return 0;
 }
 
-void convertToPCL(PointCloud<PointXYZ>::Ptr cloud, PointCloudStorage* myCloud)
-{
-	int pointCloudSize = myCloud->ChildrenCount();
-	for (int i = 0; i < pointCloudSize; i++)
-	{
-		BaseObject3D* child = myCloud->GetChild(i);
-		if (child != NULL)
-		{
-			if (child->GetType() == BaseObject3D::Object3DType::TYPE_POINT)
-			{
-				cv::Vec3f point = child->GetCoord();
-				cloud->points.push_back(PointXYZ(point[0], point[1], point[2]));
-			}
-			else
-				convertObjectToPCL(cloud, (Object3D*)child);
-		}
-	}
-}
-
-void convertObjectToPCL(PointCloud<PointXYZ>::Ptr cloud, Object3D* object)
-{
-	for (int i = 0; i < object->ChildrenCount(); i++)
-	{
-		BaseObject3D* curObject = object->GetChild(i);
-		if (curObject != NULL)
-		{
-			if (curObject->GetType() == BaseObject3D::TYPE_OBJECT)
-				convertObjectToPCL(cloud, dynamic_cast<Object3D*>(curObject));
-			else
-			{
-				cv::Vec3f point = curObject->GetCoord();
-				cloud->points.push_back(PointXYZ(point[0], point[1], point[2]));
-			}
-		}
-	}
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////                   ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ                    ///////////////////
