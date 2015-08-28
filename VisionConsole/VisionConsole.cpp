@@ -36,6 +36,7 @@
 #include <pcl/visualization/cloud_viewer.h>
 
 using namespace cv;
+using namespace pcl;
 using namespace std;
 
 #define IMAGE_SCALE 0.5
@@ -127,6 +128,9 @@ void loadSGBMSettings(StereoSGBMParams& params, const char* filename);
 
 //Показать подсказки
 void displayHelp();
+
+void convertToPCL(PointCloud<PointXYZ>::Ptr cloud, PointCloudStorage* myCloud);
+void convertObjectToPCL(PointCloud<PointXYZ>::Ptr cloud, Object3D* object);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -299,26 +303,26 @@ int main(int argc, _TCHAR* argv[])
 
 
 	//Отображаем ползунки для настройки
-	displayTrackbarSeparate();
+	/*displayTrackbarSeparate();
 
 	//Настройка параметров разделения объектов и фильтрации
 	//Делаем фотографии
 	vector<Mat> lefts, rights;
 	for (int i = 0; i < 1; i++)
 	{
-		cap1 >> leftIm;
-		cap2 >> rightIm;
-		convertImage(leftIm, IMAGE_SCALE);
-		convertImage(rightIm, IMAGE_SCALE);
-		lefts.push_back(leftIm.clone());
-		rights.push_back(rightIm.clone());
-		//waitKey(10);
+	cap1 >> leftIm;
+	cap2 >> rightIm;
+	convertImage(leftIm, IMAGE_SCALE);
+	convertImage(rightIm, IMAGE_SCALE);
+	lefts.push_back(leftIm.clone());
+	rights.push_back(rightIm.clone());
+	//waitKey(10);
 	}
 
 
-	//Настраиваем параметры для обработчиков и 
+	//Настраиваем параметры для обработчиков и
 	//создаем 3д просмоторщик
-	/*GlutViewer viewer(argc, argv, NULL);
+	GlutViewer viewer(argc, argv, NULL);
 	separateData.sv = &sv;
 	separateData.viewer = &viewer;
 	separateData.left = lefts;
@@ -331,45 +335,98 @@ int main(int argc, _TCHAR* argv[])
 	int keycode = 0;
 	do
 	{
-		separateData.cloud = sv.CalculatePointCloud(lefts, rights);
-		separateData.cloud->SeparateObjects(separateData.maxDist / 10.0f);
-		viewer.UpdateGeometry(separateData.cloud);
-		keycode = waitKey(0);
-	} while (keycode != 13);
-
-	*/
-
-	cout << "Saving files...\n";
 	separateData.cloud = sv.CalculatePointCloud(lefts, rights);
 	separateData.cloud->SeparateObjects(separateData.maxDist / 10.0f);
+	viewer.UpdateGeometry(separateData.cloud);
+	keycode = waitKey(0);
+	} while (keycode != 13);
+
+	cout << "Saving files...\n";
 	separateData.cloud->SaveToObj("cloud.obj");
 
 
 	//Сохранение файла конфигурации
 	if (!isStereoConfig)
 	{
-		char answer;
-		cout << "Do you want to save config? (y\\n): ";
-		cin >> answer;
-		if (answer == 'y')
-		{
-			isStereoConfig = true;
-			cout << "Enter filename *.yml or *.xml: ";
-			cin >> stereoFilename;
-		}
+	char answer;
+	cout << "Do you want to save config? (y\\n): ";
+	cin >> answer;
+	if (answer == 'y')
+	{
+	isStereoConfig = true;
+	cout << "Enter filename *.yml or *.xml: ";
+	cin >> stereoFilename;
+	}
 	}
 
 	if (isStereoConfig)
 	{
-		if (useStereoSGBM)
-			stereoSGBMParams.sgbm->save(stereoFilename);
-		else
-			stereoBMParams.sbm->save(stereoFilename);
+	if (useStereoSGBM)
+	stereoSGBMParams.sgbm->save(stereoFilename);
+	else
+	stereoBMParams.sbm->save(stereoFilename);
+	}*/
+
+	//Захват изображений
+	cap1 >> leftIm;
+	cap2 >> rightIm;
+	convertImage(leftIm, 0.5);
+	convertImage(rightIm, 0.5);
+
+	PointCloudStorage* pc = sv.CalculatePointCloud(leftIm, rightIm);
+	
+	//pc->SaveToObj("cloud.obj");
+	int pointCloudSize = pc->ChildrenCount();
+
+	PointCloud<PointXYZ>::Ptr cloud (new PointCloud<PointXYZ>(pointCloudSize, 1));
+
+	convertToPCL(cloud, pc);
+
+	pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
+	viewer.showCloud(cloud);
+	while (!viewer.wasStopped())
+	{
 	}
 
 	return 0;
 }
 
+void convertToPCL(PointCloud<PointXYZ>::Ptr cloud, PointCloudStorage* myCloud)
+{
+	int pointCloudSize = myCloud->ChildrenCount();
+	for (int i = 0; i < pointCloudSize; i++)
+	{
+		BaseObject3D* child = myCloud->GetChild(i);
+		if (child != NULL)
+		{
+			if (child->GetType() == BaseObject3D::Object3DType::TYPE_POINT)
+			{
+				cv::Vec3f point = child->GetCoord();
+				cloud->points.push_back(PointXYZ(point[0], point[1], point[2]));
+			}
+			else
+				convertObjectToPCL(cloud, (Object3D*)child);
+		}
+	}
+}
+
+void convertObjectToPCL(PointCloud<PointXYZ>::Ptr cloud, Object3D* object)
+{
+	for (int i = 0; i < object->ChildrenCount(); i++)
+	{
+		BaseObject3D* curObject = object->GetChild(i);
+		if (curObject != NULL)
+		{
+			if (curObject->GetType() == BaseObject3D::TYPE_OBJECT)
+				convertObjectToPCL(cloud, dynamic_cast<Object3D*>(curObject));
+			else
+			{
+				cv::Vec3f point = curObject->GetCoord();
+				cloud->points.push_back(PointXYZ(point[0], point[1], point[2]));
+			}
+		}
+	}
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////                   ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ                    ///////////////////

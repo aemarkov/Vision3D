@@ -237,12 +237,12 @@ PointCloudStorage* StereoVision::_calculatePointCloud(const std::vector<cv::Mat>
 
 		//Цветное изображение обесцвечиваем
 		if (left_image.channels() == 3)
-			cv::cvtColor(left, leftGrey, CV_RGB2GRAY);
+			cv::cvtColor(left_image, leftGrey, CV_RGB2GRAY);
 		else
 			leftGrey = left_image;
 
 		if (right_image.channels() == 3)
-			cv::cvtColor(right, rightGrey, CV_RGB2GRAY);
+			cv::cvtColor(right_image, rightGrey, CV_RGB2GRAY);
 		else
 			rightGrey = right_image;
 
