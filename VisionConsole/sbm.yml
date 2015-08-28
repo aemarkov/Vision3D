@@ -3,8 +3,8 @@ my_object:
    format: 3
    name: "StereoMatcher.BM"
    minDisparity: 0
-   numDisparities: 96
-   blockSize: 5
+   numDisparities: 48
+   blockSize: 9
    speckleWindowSize: 0
    speckleRange: 0
    disp12MaxDiff: 3

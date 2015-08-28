@@ -116,7 +116,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)freeglut\lib\x64;$(OPENCV_DIR_x64)\lib;$(PCL_ROOT_x64)\lib;$(PCL_ROOT_x64)\3rdParty\Boost\lib;$(PCL_ROOT_x64)\3rdParty\FLANN\lib;$(PCL_ROOT_x64)\3rdParty\VTK\lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opencv_ts300d.lib;opencv_world300d.lib;%(AdditionalDependencies);freeglut.lib;pcl_io_debug.lib;pcl_common_debug.lib;pcl_visualization_debug.lib;pcl_stereo_debug.lib;vtkalglib-6.2-gd.lib</AdditionalDependencies>
+      <AdditionalDependencies>opencv_ts300d.lib;opencv_world300d.lib;%(AdditionalDependencies);freeglut.lib;pcl_io_debug.lib;pcl_common_debug.lib;pcl_visualization_debug.lib;pcl_stereo_debug.lib;pcl_filters_debug.lib;vtkalglib-6.2-gd.lib</AdditionalDependencies>
     </Link>
     <Bscmake>
       <PreserveSbr>true</PreserveSbr>

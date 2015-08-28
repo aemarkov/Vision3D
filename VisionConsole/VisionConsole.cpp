@@ -18,22 +18,10 @@
 
 #include "GlutViewer.h"
 
-#include <pcl/io/ply_io.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/segmentation/progressive_morphological_filter.h>
-#include <pcl/ModelCoefficients.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/kdtree/kdtree.h>
-#include <pcl/segmentation/sac_segmentation.h>
-#include <pcl/segmentation/extract_clusters.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/common/common.h>
-#include <pcl/common/transforms.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/io/pcd_io.h>
 
 using namespace cv;
 using namespace pcl;
@@ -345,6 +333,30 @@ int main(int argc, _TCHAR* argv[])
 	separateData.cloud->SaveToObj("cloud.obj");
 
 
+	*/
+
+	//Захват изображений
+	cap1 >> leftIm;
+	cap2 >> rightIm;
+	convertImage(leftIm, 0.5);
+	convertImage(rightIm, 0.5);
+
+	PointCloud<PointXYZ>::Ptr cloud = sv.CalculatePointCloud(leftIm, rightIm);
+	PointCloud<PointXYZ>::Ptr cloud_filtered(new PointCloud<PointXYZ>());
+
+	pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+	sor.setInputCloud(cloud);
+	sor.setMeanK(10);
+	sor.setStddevMulThresh(0.0001);
+	sor.filter(*cloud_filtered);
+
+	pcl::visualization::CloudViewer viewer("Filtered");
+	viewer.showCloud(cloud);
+
+	while (!viewer.wasStopped())
+	{
+	}
+
 	//Сохранение файла конфигурации
 	if (!isStereoConfig)
 	{
@@ -365,21 +377,8 @@ int main(int argc, _TCHAR* argv[])
 	stereoSGBMParams.sgbm->save(stereoFilename);
 	else
 	stereoBMParams.sbm->save(stereoFilename);
-	}*/
-
-	//Захват изображений
-	cap1 >> leftIm;
-	cap2 >> rightIm;
-	convertImage(leftIm, 0.5);
-	convertImage(rightIm, 0.5);
-
-	PointCloud<PointXYZ>::Ptr cloud = sv.CalculatePointCloud(leftIm, rightIm);
-
-	pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
-	viewer.showCloud(cloud);
-	while (!viewer.wasStopped())
-	{
 	}
+
 
 	return 0;
 }
