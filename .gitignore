@@ -8,6 +8,11 @@
 /VisionConsole/Release/
 /VisionCore/Debug/
 
+#x64
+/x64/
+/VisionConsole/x64/
+/VisionCore/x64/
+
 # Всякие файлы Visual Studio
 *.sdf
 *.opensdf

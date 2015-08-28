@@ -301,7 +301,7 @@ int main(int argc, _TCHAR* argv[])
 
 	//Настраиваем параметры для обработчиков и 
 	//создаем 3д просмоторщик
-	GlutViewer viewer(argc, argv, NULL);
+	/*GlutViewer viewer(argc, argv, NULL);
 	separateData.sv = &sv;
 	separateData.viewer = &viewer;
 	separateData.left = lefts;
@@ -320,7 +320,11 @@ int main(int argc, _TCHAR* argv[])
 		keycode = waitKey(0);
 	} while (keycode != 13);
 
+	*/
+
 	cout << "Saving files...\n";
+	separateData.cloud = sv.CalculatePointCloud(lefts, rights);
+	separateData.cloud->SeparateObjects(separateData.maxDist / 10.0f);
 	separateData.cloud->SaveToObj("cloud.obj");
 
 
