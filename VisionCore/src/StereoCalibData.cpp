@@ -20,6 +20,7 @@ StereoCalibData::StereoCalibData(const char* filename)
 	fs["RL"] >> LeftCameraRot;
 	fs["RR"] >> RightCameraRot;
 	fs["Q"] >> Q;
+	fs["T"] >> CameraTransform;
 	fs.release();
 }
 
@@ -44,19 +45,21 @@ StereoCalibData& StereoCalibData::operator=(const StereoCalibData& other)
 void StereoCalibData::_copyToThis(const StereoCalibData& other)
 {
 	this->ImageSize = other.ImageSize;
-	this->LeftCameraMatrix = other.LeftCameraMatrix;
-	this->RightCameraMatrix = other.RightCameraMatrix;
-	this->LeftCameraDistortions = other.LeftCameraDistortions;
-	this->RightCameraDistortions = other.RightCameraDistortions;
-	this->LeftCameraRectifiedProjection = other.LeftCameraRectifiedProjection;
-	this->RightCameraRectifiedProjection = other.RightCameraRectifiedProjection;
-	this->LeftCameraRot = other.LeftCameraRot;
-	this->RightCameraRot = other.RightCameraRot;
-	this->LeftMapX = other.LeftMapX;
-	this->LeftMapY = other.LeftMapY;
-	this->RightMapX = other.RightMapX;
-	this->RightMapY = other.RightMapY;
-	this->Q = other.Q;
+	this->LeftCameraMatrix = other.LeftCameraMatrix.clone();
+	this->RightCameraMatrix = other.RightCameraMatrix.clone();
+	this->LeftCameraDistortions = other.LeftCameraDistortions.clone();
+	this->RightCameraDistortions = other.RightCameraDistortions.clone();
+	this->LeftCameraRectifiedProjection = other.LeftCameraRectifiedProjection.clone();
+	this->RightCameraRectifiedProjection = other.RightCameraRectifiedProjection.clone();
+	this->LeftCameraRot = other.LeftCameraRot.clone();
+	this->RightCameraRot = other.RightCameraRot.clone();
+	this->Q = other.Q.clone();
+	this->CameraTransform = other.CameraTransform.clone();
+
+	this->LeftMapX = other.LeftMapX.clone();
+	this->LeftMapY = other.LeftMapY.clone();
+	this->RightMapX = other.RightMapX.clone();
+	this->RightMapY = other.RightMapY.clone();
 }
 
 //Создание полной копии
@@ -69,15 +72,18 @@ StereoCalibData& StereoCalibData::Clone()
 	data.RightCameraMatrix = this->RightCameraMatrix.clone();
 	data.LeftCameraDistortions = this->LeftCameraDistortions.clone();
 	data.RightCameraDistortions = this->RightCameraDistortions.clone();
-	data.LeftCameraRectifiedProjection = this->LeftCameraRectifiedProjection;
-	data.RightCameraRectifiedProjection = this->RightCameraRectifiedProjection;
+	data.LeftCameraRectifiedProjection = this->LeftCameraRectifiedProjection.clone();
+	data.RightCameraRectifiedProjection = this->RightCameraRectifiedProjection.clone();
 	data.LeftCameraRot = this->LeftCameraRot;
 	data.RightCameraRot = this->RightCameraRot;
 	data.Q = this->Q.clone();
-	data.LeftMapX = this->LeftMapX;
-	data.LeftMapY = this->LeftMapY;
-	data.RightMapX = this->RightMapX;
-	data.RightMapY = this->RightMapY;
+	data.CameraTransform = this->CameraTransform.clone();;
+
+
+	data.LeftMapX = this->LeftMapX.clone();
+	data.LeftMapY = this->LeftMapY.clone();
+	data.RightMapX = this->RightMapX.clone();
+	data.RightMapY = this->RightMapY.clone();
 
 
 	return data;
@@ -98,6 +104,7 @@ void StereoCalibData::Save(const char* filename) const
 	fs << "RL" << LeftCameraRot;
 	fs << "RR" << RightCameraRot;
 	fs << "Q" << Q;
+	fs << "T" << CameraTransform;
 	fs.release();
 
 }

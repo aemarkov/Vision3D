@@ -117,8 +117,6 @@ void loadSGBMSettings(StereoSGBMParams& params, const char* filename);
 //Показать подсказки
 void displayHelp();
 
-void convertToPCL(PointCloud<PointXYZ>::Ptr cloud, PointCloudStorage* myCloud);
-void convertObjectToPCL(PointCloud<PointXYZ>::Ptr cloud, Object3D* object);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -217,7 +215,7 @@ int main(int argc, _TCHAR* argv[])
 
 	}
 
-	//Загружаем конфиг Stereo Matching'а
+	/*//Загружаем конфиг Stereo Matching'а
 	if (isStereoConfig)
 	{
 		if (!useStereoSGBM)
@@ -287,7 +285,7 @@ int main(int argc, _TCHAR* argv[])
 		cout << "Tune up Stereo Matching params\n";
 		cout << "Pres any key to continue\n";
 		waitKey(0);
-	}
+	}*/
 
 
 	//Отображаем ползунки для настройки
@@ -341,14 +339,14 @@ int main(int argc, _TCHAR* argv[])
 	convertImage(leftIm, 0.5);
 	convertImage(rightIm, 0.5);
 
-	PointCloud<PointXYZ>::Ptr cloud = sv.CalculatePointCloud(leftIm, rightIm);
-	PointCloud<PointXYZ>::Ptr cloud_filtered(new PointCloud<PointXYZ>());
+	PointCloud<PointXYZRGB>::Ptr cloud = sv.CalculatePointCloud(leftIm, rightIm);
+	/*PointCloud<PointXYZ>::Ptr cloud_filtered(new PointCloud<PointXYZ>());
 
 	pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
 	sor.setInputCloud(cloud);
 	sor.setMeanK(10);
 	sor.setStddevMulThresh(0.0001);
-	sor.filter(*cloud_filtered);
+	sor.filter(*cloud_filtered);*/
 
 	pcl::visualization::CloudViewer viewer("Filtered");
 	viewer.showCloud(cloud);
@@ -358,7 +356,7 @@ int main(int argc, _TCHAR* argv[])
 	}
 
 	//Сохранение файла конфигурации
-	if (!isStereoConfig)
+	/*if (!isStereoConfig)
 	{
 	char answer;
 	cout << "Do you want to save config? (y\\n): ";
@@ -377,7 +375,7 @@ int main(int argc, _TCHAR* argv[])
 	stereoSGBMParams.sgbm->save(stereoFilename);
 	else
 	stereoBMParams.sbm->save(stereoFilename);
-	}
+	}*/
 
 
 	return 0;
@@ -509,29 +507,21 @@ bool calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
 {
 	Mat left, right, disparity;
-	vector<Mat> lefts, rights;
 	int keyCode;
 
 	while (true)
 	{
-		lefts.clear();
-		rights.clear();
-		for (int i = 0; i < 1; i++)
-		{
-			//Захват изображений
-			cap1 >> left;
-			cap2 >> right;
+		
+		//Захват изображений
+		cap1 >> left;
+		cap2 >> right;
 
-			//Перевод в черно-белое и масштабирование
-			convertImage(left, IMAGE_SCALE);
-			convertImage(right, IMAGE_SCALE);
-			lefts.push_back(left);
-			rights.push_back(right);
-			//waitKey(1);
-		}
+		//Перевод в черно-белое и масштабирование
+		convertImage(left, IMAGE_SCALE);
+		convertImage(right, IMAGE_SCALE);
 
 		//Построение и показ карты различий
-		sv.CalculatePointCloud(lefts, rights, disparity, true);
+		sv.CalculatePointCloud(left, right, disparity, true);
 		imshow("disparity", disparity);
 
 		keyCode = waitKey(1);

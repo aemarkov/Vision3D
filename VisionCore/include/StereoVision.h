@@ -23,11 +23,13 @@
 
 #include <pcl/common/common.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/stereo/stereo_matching.h>
 
 #include <vector>
 #include <fstream>
 
 #include "StereoCalibData.h"
+#include "StaticHelpers.h"
 
 class StereoVision
 {
@@ -55,30 +57,13 @@ public:
 	void Rectify(cv::Mat& left, cv::Mat& right);
 
 	/* Построение облака точек по двум изображениям
-	* param[in] left - левые изображения с откалиброванной камеры
-	* param[in] right - правые изображения с откалиброванной камеры
-	* param[out] disparity - карта смещения для визуализации
-	* param[in] disparityOnly - строить карту глубины без облака точек
-	* result - облако точек
-	*/
-	pcl::PointCloud<pcl::PointXYZ>::Ptr CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, cv::Mat& disparity, bool disparityOnly = false) const;
-
-	/* Построение облака точек по двум изображениям
-	* param[in] left - левые изображения с откалиброванной камеры
-	* param[in] right - правые изображения с откалиброванной камеры
-	* param[in] disparityOnly - строить карту глубины без облака точек
-	* result - облако точек
-	*/
-	pcl::PointCloud<pcl::PointXYZ>::Ptr CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right) const;
-
-	/* Построение облака точек по двум изображениям
 	* param[in] left - левое изображение с откалиброванной камеры
 	* param[in] right - правое изображение с откалиброванной камеры
 	* param[out] disparity - карта смещения для визуализации
 	* param[in] disparityOnly - строить карту глубины без облака точек
 	* result - облако точек
 	*/
-	pcl::PointCloud<pcl::PointXYZ>::Ptr CalculatePointCloud(const cv::Mat & left, const cv::Mat & right, cv::Mat& disparity, bool disparityOnly = false) const;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr CalculatePointCloud(const cv::Mat & left, const cv::Mat & right, cv::Mat& disparity, bool disparityOnly = false) const;
 
 	/* Построение облака точек по двум изображениям
 	* param[in] left - левое изображение с откалиброванной камеры
@@ -86,7 +71,7 @@ public:
 	* param[in] disparityOnly - строить карту глубины без облака точек
 	* result - облако точек
 	*/
-	pcl::PointCloud<pcl::PointXYZ>::Ptr CalculatePointCloud(const cv::Mat & left, cv::Mat & right) const;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr CalculatePointCloud(const cv::Mat & left, cv::Mat & right) const;
 
 	//Возвращает параметры калибровки
 	StereoCalibData GetCalibData();
@@ -110,9 +95,7 @@ private:
 
 	//Создает матрицы исправленяи искажений
 	void _createUndistortRectifyMaps(StereoCalibData& data);
-	
-	//Усредняет карту различий
-	cv::Mat average_disparity(std::vector<cv::Mat>& disparities) const;
+
 
 	/* Строит облако точек по парам изображений
 	 * param[in] left - вектор изображений с левой камеры
@@ -122,10 +105,13 @@ private:
 	 * param[in] - disparityOnly - генерировать только карту различий без облака точек
 	 * result - укзаатель на облако точек
 	*/
-	pcl::PointCloud<pcl::PointXYZ>::Ptr  _calculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const;
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr  _calculatePointCloud(const cv::Mat & left, const cv::Mat & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const;
 
 	//Преобразует облако точек из cv::Mat в pcl::PointCloud
 	pcl::PointCloud<pcl::PointXYZ>::Ptr _matToPointCloud(const cv::Mat mat) const;
+
+	//Преобразует изображение из cv::Mat в pcl::PointCloud
+	pcl::PointCloud<pcl::RGB>::Ptr  _imgToPointCloud(const cv::Mat mat) const;
 };
 
 #endif

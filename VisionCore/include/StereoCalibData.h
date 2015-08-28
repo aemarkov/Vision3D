@@ -36,6 +36,7 @@ public:
 	cv::Mat RightCameraRectifiedProjection;
 	cv::Mat LeftCameraRot;
 	cv::Mat RightCameraRot;
+	cv::Mat CameraTransform;
 
 	//Матриы исправления искажений (не сохраняются)
 	cv::Mat LeftMapX, LeftMapY;

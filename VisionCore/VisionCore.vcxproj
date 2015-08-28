@@ -92,7 +92,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(OPENCV_DIR_x64)\..\..\include;$(ProjectDir)include;$(PCL_ROOT_x64)\include\pcl-1.7;$(PCL_ROOT_x64)\3rdParty\Boost\include\boost-1_57;$(PCL_ROOT_x64)\3rdParty\FLANN\include;$(PCL_ROOT_x64)\3rdParty\Eigen\eigen3;C:\PCL 1.7.2 x64\3rdParty\VTK\include\vtk-6.2</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OPENCV_DIR_x64)\..\..\include;$(ProjectDir)include;$(PCL_ROOT_x64)\include\pcl-1.7;$(PCL_ROOT_x64)\3rdParty\Boost\include\boost-1_57;$(PCL_ROOT_x64)\3rdParty\FLANN\include;C:\PCL 1.7.2 x64\3rdParty\Eigen\eigen3;$(PCL_ROOT_x64)\3rdParty\VTK\include\vtk-6.2</AdditionalIncludeDirectories>
       <BrowseInformation>true</BrowseInformation>
     </ClCompile>
     <Link>

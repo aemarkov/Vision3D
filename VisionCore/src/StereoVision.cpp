@@ -151,9 +151,11 @@ bool StereoVision::Calibrate(const std::vector<cv::Mat>& left, const std::vector
 	calibData.RightCameraDistortions = D2.clone();
 	calibData.LeftCameraRectifiedProjection = P1.clone();
 	calibData.RightCameraRectifiedProjection = P2.clone();
+	
 	calibData.LeftCameraRot = R1.clone();
 	calibData.RightCameraRot = R2.clone();
 	calibData.Q = Q;
+	calibData.CameraTransform = T;
 
 	_createUndistortRectifyMaps(calibData);
 
@@ -184,95 +186,82 @@ void StereoVision::Rectify(cv::Mat& left, cv::Mat& right)
 	right = rightRemaped.clone();
 }
 
+
 // Построение облака точек по двум изображениям
-pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, cv::Mat& disparity, bool disparityOnly) const
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr StereoVision::CalculatePointCloud(const cv::Mat & left, const cv::Mat & right, cv::Mat& disparity, bool disparityOnly) const
 {
 	return _calculatePointCloud(left, right, false, disparity, disparityOnly);
 }
 
-// Построение облака точек по двум изображениям
-pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::CalculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right) const
+//Построение облака точек по двум изображениям
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr StereoVision::CalculatePointCloud(const cv::Mat & left, cv::Mat & right) const
 {
 	cv::Mat mat;
 	return _calculatePointCloud(left, right, true, mat, false);
 }
 
 
-// Построение облака точек по двум изображениям
-pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::CalculatePointCloud(const cv::Mat & left, const cv::Mat & right, cv::Mat& disparity, bool disparityOnly) const
-{
-	std::vector<cv::Mat> lefts, rights;
-	lefts.push_back(left);
-	rights.push_back(right);
-	return CalculatePointCloud(lefts, rights, disparity, disparityOnly);
-}
-
-//Построение облака точек по двум изображениям
-pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::CalculatePointCloud(const cv::Mat & left, cv::Mat & right) const
-{
-	std::vector<cv::Mat> lefts, rights;
-	lefts.push_back(left);
-	rights.push_back(right);
-	cv::Mat mat;
-	return CalculatePointCloud(lefts, rights, mat, false);
-}
-
-
 //Строит облако точек
 //Соответствующие публичные методы - обертка вокруг него, для красоты
-pcl::PointCloud<pcl::PointXYZ>::Ptr  StereoVision::_calculatePointCloud(const std::vector<cv::Mat> & left, const std::vector <cv::Mat> & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr  StereoVision::_calculatePointCloud(const cv::Mat & left, const cv::Mat & right, bool noDisparityOut, cv::Mat& disparityResult, bool disparityOnly) const
 {
-	std::vector <cv::Mat> disparities;
-	int pairs_count = left.size(); //Число пар изображений
-
-	//Для каждого находим disparity
-	for (int pair_index = 0; pair_index < pairs_count; pair_index++)
-	{
-		cv::Mat left_image  = left[pair_index],
-				right_image = right[pair_index];
-
-		cv::Mat leftRemaped, rightRemaped;
-		cv::Mat leftGrey, rightGrey;
-		cv::Mat disparity, normalDisparity;
-
-
-		//Цветное изображение обесцвечиваем
-		if (left_image.channels() == 3)
-			cv::cvtColor(left_image, leftGrey, CV_RGB2GRAY);
-		else
-			leftGrey = left_image;
-
-		if (right_image.channels() == 3)
-			cv::cvtColor(right_image, rightGrey, CV_RGB2GRAY);
-		else
-			rightGrey = right_image;
-
-		//Выпрямляем
-		cv::remap(leftGrey, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
-		cv::remap(rightGrey, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
-
-		//Строим карту различий
-		//Надо передавать изображения наоброт. ХЗ зачем
-		stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
-		cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);
-
-		disparities.push_back(normalDisparity.clone());
-	}
-
-	//Усредняем все карты неровностей
-	cv::Mat normal_disparity = average_disparity(disparities);
+	cv::Mat leftRemaped, rightRemaped;
+	cv::Mat normalDisparity(100, 100, CV_8U, 100);
 	cv::Mat cloud;
+
+	//Выпрямляем
+	cv::remap(left, leftRemaped, calibData.LeftMapX, calibData.LeftMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+	cv::remap(right, rightRemaped, calibData.RightMapX, calibData.RightMapY, cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar());
+
+	//Строим карту различий
+	//Надо передавать изображения наоброт. ХЗ зачем
+	//stereoMatcher->compute(rightRemaped, leftRemaped, disparity);
+	//cv::normalize(disparity, normalDisparity, 0, 255, CV_MINMAX, CV_8U);
+	
+	pcl::PointCloud<pcl::RGB>::Ptr leftCloud = _imgToPointCloud(leftRemaped);
+	pcl::PointCloud<pcl::RGB>::Ptr rightCloud = _imgToPointCloud(rightRemaped);
+
+	pcl::AdaptiveCostSOStereoMatching stereo;
+	stereo.setMaxDisparity(60);
+	//stereo.setXOffest(0); Почему-то не распознается
+	stereo.setRadius(5);
+	stereo.setSmoothWeak(20);
+	stereo.setSmoothStrong(100);
+	stereo.setGammaC(25);
+	stereo.setGammaS(10);
+	stereo.setRatioFilter(20);
+	stereo.setPeakFilter(0);
+	stereo.setLeftRightCheck(true);
+	stereo.setLeftRightCheckThreshold(1);
+	stereo.setPreProcessing(true);
+
+	stereo.compute(*leftCloud, *rightCloud);
+	stereo.medianFilter(4);
+
+	//focal length (???)
+	double f = calibData.LeftCameraMatrix.at<double>(0, 0);
+
+	//principal point
+	double u0 = calibData.LeftCameraMatrix.at<double>(0, 2);
+	double v0 = calibData.LeftCameraMatrix.at<double>(1, 2);
+
+	//baseline (расстояние, между камерами)
+	double dist = calibData.CameraTransform.at<double>(0, 0);
+
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+	stereo.getPointCloud(318.11220, 224.334900, 368.534700, 0.8387445, out_cloud, leftCloud);
+	//stereo.getPointCloud(u0, v0, f, dist, out_cloud, leftCloud);
+
 
 	if (!noDisparityOut)
 	{
-		disparityResult = normal_disparity.clone();
+		disparityResult = normalDisparity.clone();
 	}
 
 	if (!disparityOnly)
 	{
 		//Создаем облако точек
-		cv::reprojectImageTo3D(normal_disparity, cloud, calibData.Q, true);
-		return _matToPointCloud(cloud);
+		return out_cloud;
 	}
 	else
 	{
@@ -332,40 +321,6 @@ void StereoVision::_createUndistortRectifyMaps(StereoCalibData& data)
 	cv::initUndistortRectifyMap(data.RightCameraMatrix, data.RightCameraDistortions, data.RightCameraRot, data.RightCameraRectifiedProjection, data.ImageSize, CV_32FC1, data.RightMapX, data.RightMapY);
 }
 
-cv::Mat StereoVision::average_disparity(std::vector<cv::Mat>& disparities) const
-{
-	cv::Mat example_mat = disparities[0];
-	cv::Mat average_disparity(example_mat);			//Среднее арифметическое всех элементов disparities
-
-	int disparities_count = disparities.size();		//Число всех элементов disparities
-
-	//Размеры каждой из матриц disparities
-	int cols = example_mat.cols;
-	int rows = example_mat.rows;
-
-	cv::Mat d = disparities[0];
-	auto a = d.type();
-
-	//Среднее значение элемента матрицы с координатами x, y
-	unsigned int average_element_value;
-
-	//Усреднение по каждой точке каждого элемента disparity
-	for (int x = 0; x < cols; x++)
-	{
-		for (int y = 0; y < rows; y++)
-		{
-			//Среднее арифметическое для всех элементов с координатами x, y
-			average_element_value = 0;
-			for (int i = 0; i < disparities_count; i++)
-				average_element_value += disparities[i].at<unsigned char>(y, x);
-
-			average_disparity.at<unsigned char>(y, x) = average_element_value / (float)disparities_count;
-			//average_disparity.at<char>(y, x) = disparities[0].at<char>(y, x);
-		}
-	}
-
-	return average_disparity;
-}
 
 //Преобразует облако точек из cv::Mat в pcl::PointCloud
 pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::_matToPointCloud(const cv::Mat mat) const
@@ -393,5 +348,45 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr StereoVision::_matToPointCloud(const cv::Mat
 		
 	}
 
+	return cloud;
+}
+
+//Преобразует изображение из cv::Mat в pcl::PointCloud
+pcl::PointCloud<pcl::RGB>::Ptr  StereoVision::_imgToPointCloud(const cv::Mat mat) const
+{
+	int width = mat.cols;
+	int height = mat.rows;
+	pcl::PointCloud<pcl::RGB>::Ptr cloud(new pcl::PointCloud<pcl::RGB>(width, height));
+	pcl::RGB rgb;
+
+	int channels = mat.channels();
+	
+	cv::Scalar color(0, 255, 0);
+
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			if (channels == 3)
+			{
+				auto point = mat.at<cv::Scalar>(y, x);
+				rgb.r = point[2];
+				rgb.g = point[1];
+				rgb.b = point[0];
+				cloud->at(x, y) = rgb;
+			}
+			else
+			{
+				auto point = mat.at<unsigned char>(y, x);
+				rgb.r = point;
+				rgb.g = point;
+				rgb.b = point;
+				cloud->at(x, y) = rgb;
+			}
+
+			
+		}
+	}
+	
 	return cloud;
 }
