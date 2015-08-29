@@ -29,77 +29,105 @@ using namespace std;
 
 #define IMAGE_SCALE 0.5
 
-//Паараметры для StereoSGBM
-struct StereoSGBMParams
+// Settings for AdaptiveCostSOStereoMatching algorithm
+struct ACSOSM_args
 {
-	int minDisparity = 0;
-	int numDisparities = 0;
-	int SADWindowSize = 0;
-	int p1 = 0;
-	int p2 = 0;
-	int disp12MaxDiff = 0;
-	int preFilterCap = 0;
-	int uniquenessRatio = 0;
-	int speckleWindowSize = 0;
-	int speckleRange = 0;
+	// Default arguments
+	ACSOSM_args()
+		:radius(5),
+		gamma_s(10),
+		gamma_c(25),
+		smoothness_weak(20),
+		smoothness_strong(100)
+	{}
+	// radius (half length) of the column used for cost aggregation; 
+	// the total column length is equal to 2*radius + 1
+	int radius = 5;
 
+	// spatial bandwith used for cost aggregation based on adaptive weights
 
-	Ptr<StereoSGBM> sgbm;
-} stereoSGBMParams;
+	int gamma_s = 10;
 
-//Параметры для SteroBM
-struct StereoBMParams
-{
-	int blockSize = 0;
-	int numDisparities = 0;
-	int preFilterSize = 0;
-	int preFilterCap = 0;
-	int minDisparity = 0;
-	int textureThreshold = 0;
-	int uniquenessRatio = 0;
-	int speckleWindowSize = 0;
-	int speckleRange = 0;
-	int disp12MaxDiff = 0;
+	//  color bandwith used for cost aggregation based on adaptive weights
+	int gamma_c = 25;
 
-	Ptr<StereoBM> sbm;
-} stereoBMParams;
+	// "weak" smoothness penalty used within 2-pass Scanline Optimization
+	int smoothness_weak = 20;
 
-//Параметры для разделения на объекты
-struct SeparateData
-{
-	StereoVision* sv;
-	GlutViewer* viewer;
-	vector<Mat> left;
-	vector<Mat> right;
-	PointCloudStorage* cloud = NULL;
-	int maxDist = 1;
-	int minCount = 10;
-
-} separateData;
-
-//Структура для передачи данных в обработчики событий
-struct CallbackData
-{
-	StereoVision& sv;
-	Mat& left;
-	Mat& right;
-	CallbackData(StereoVision& sv, Mat& left, Mat& right) :sv(sv), left(left), right(right){}
+	// "strong" smoothness penalty used within 2-pass Scanline Optimization
+	int smoothness_strong = 100;
 };
 
+// Settings for BlockBasedStereoMatching algorithm
+struct BBSM_args
+{
+	// Default arguments
+	BBSM_args()
+		:radius(5)
+	{}
+	// setter for the radius of the squared window
+	// radius of the squared window used to compute the block-based stereo algorithm 
+	// the window side is equal to 2*radius + 1
+	int radius;
+};
+
+struct Common_args
+{
+	// Default arguments
+	Common_args()
+		:max_disparity(60),
+		x_offset(0),
+		ratio_filter(20),
+		peak_filter(0),
+		is_pre_processing(true),
+		is_left_right_check(true),
+		left_to_right_check_treshold(1),
+		median_filter_radius(4)
+	{}
+
+	// number of disparity candidates (disparity range); 
+	// || > 0
+	int max_disparity = 60;
+
+	// number of pixels to shift the disparity range over the target image
+	// || >= 0
+	int x_offset = 0; // horizontal offset
+
+	// value of the ratio filter;
+	// it is a number in the range[0, 100]
+	// (0: no filtering action; 100: all disparities are filtered)
+	// || [0; 100]
+	int ratio_filter = 20;
+
+	// value of the peak filter; it is a number in the range 
+	// || [0, inf] (0: no filtering action)
+	int peak_filter = 0;
+
+	// setting the boolean to true activates the pre-processing step for both stereo images
+	bool is_pre_processing = true;
+
+	// setter for the left-right consistency check stage,
+	// that eliminates inconsistent/wrong disparity values from the disparity map at approx.
+	// setting the boolean to true activates the left-right consistency check
+	bool is_left_right_check = true;
+
+	// sets the value of the left-right consistency check threshold 
+	// only has some influence if the left-right check is active typically has either the value 
+	// 0 ("strong" consistency check, more points being filtered) 
+	// 1 ("weak" consistency check, less points being filtered)
+	int left_to_right_check_treshold = 1;
+
+
+	// median filter applied on the previously computed disparity map
+	// this radius of the squared window used to compute the median filter; 
+	// the window side is equal to 2*radius + 1
+	int median_filter_radius = 4;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 //Выводит видео-поток с камеры
 bool aiming(VideoCapture & cap, VideoCapture & cap2);
-
-void displayTrackbarsSGBM(CallbackData& data);
-void displayTrackbarsBM(CallbackData& data);
-void displayTrackbarSeparate();
-
-//Событие изменения положения ползунка
-void callbackSGBM(int wtf, void* data);
-void callbackBM(int wtf, void* data);
-void callbackMinCount(int wtf, void* data);
 
 //Масштабирует изображение и переводит его в ч\б
 void convertImage(Mat& image, float scale);
@@ -107,21 +135,23 @@ void convertImage(Mat& image, float scale);
 //Выполняет калибровку
 bool calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patternSize);
 
-//Вывод карты различий в реальном времени
-bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv);
-
-
-void loadBMSettings(StereoBMParams& params, const char* filename);
-void loadSGBMSettings(StereoSGBMParams& params, const char* filename);
-
 //Показать подсказки
 void displayHelp();
 
+
+void stereo_cycle(StereoVision& sv, cv::Mat left, cv::Mat right);
+void ACSOSM_preset(pcl::AdaptiveCostSOStereoMatching & acsosm, Common_args & comm_a, ACSOSM_args & acsosm_a);
+void BBSM_preset(pcl::BlockBasedStereoMatching & bbsm, Common_args & comm_a, BBSM_args & bbsm_a);
+void print_ACSOSM_properties_list();
+void print_BBSM_properties_list();
+void print_Common_properties_list();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main(int argc, _TCHAR* argv[])
 {
+	setlocale(LC_ALL, "Russian");
+
 	if (argc < 5)
 	{
 		//Показать хелп
@@ -215,168 +245,18 @@ int main(int argc, _TCHAR* argv[])
 
 	}
 
-	/*//Загружаем конфиг Stereo Matching'а
-	if (isStereoConfig)
-	{
-		if (!useStereoSGBM)
-			loadBMSettings(stereoBMParams, stereoFilename.c_str());
-		else
-			loadSGBMSettings(stereoSGBMParams, stereoFilename.c_str());
-	}
-
-	//Настройка параметров StereoMatching
-	auto data = CallbackData(sv, leftIm, rightIm);
-
-	//Отображение ползунков
-	if (!useStereoSGBM)
-	{
-		//StereoBM
-		displayTrackbarsBM(data);
-	}
-	else
-	{
-		//StereoSGBM
-		displayTrackbarsSGBM(data);
-	}
-
-	//Получаем карту глубины
-	if (isRealtime)
-	{
-		//Захват изображений
-		cap1 >> leftIm;
-		cap2 >> rightIm;
-
-		//Уменьшение и перевод в ч\б
-		convertImage(leftIm, IMAGE_SCALE);
-		convertImage(rightIm, IMAGE_SCALE);
-
-		//Вызываем метод настройки и показа карты глубины
-		if (useStereoSGBM)
-			callbackSGBM(0, &data);
-		else
-			callbackBM(0, &data);
-
-
-		//Показ карты различий в вреальном времени
-		cout << "Showing disparity map in realtime\n";
-		if (disparityRealtime(cap1, cap2, sv))return 0;;
-	}
-	else
-	{
-		//Строим карту глубины по изображениям (не в реальном времени)
-		//Даем пользователю поставить объект в нужное место
-		cout << "Press any key to capture\n";
-		aiming(cap1, cap2);
-
-		//Захват изображений
-		cap1 >> leftIm;
-		cap2 >> rightIm;
-
-		//Уменьшение и перевод в ч\б
-		convertImage(leftIm, IMAGE_SCALE);
-		convertImage(rightIm, IMAGE_SCALE);
-
-		//Вызываем метод настройки и показа карты глубины
-		if (useStereoSGBM)
-			callbackSGBM(0, &data);
-		else
-			callbackBM(0, &data);
-
-		cout << "Tune up Stereo Matching params\n";
-		cout << "Pres any key to continue\n";
-		waitKey(0);
-	}*/
-
-
-	//Отображаем ползунки для настройки
-	/*displayTrackbarSeparate();
-
-	//Настройка параметров разделения объектов и фильтрации
-	//Делаем фотографии
-	vector<Mat> lefts, rights;
-	for (int i = 0; i < 1; i++)
-	{
-	cap1 >> leftIm;
-	cap2 >> rightIm;
-	convertImage(leftIm, IMAGE_SCALE);
-	convertImage(rightIm, IMAGE_SCALE);
-	lefts.push_back(leftIm.clone());
-	rights.push_back(rightIm.clone());
-	//waitKey(10);
-	}
-
-
-	//Настраиваем параметры для обработчиков и
-	//создаем 3д просмоторщик
-	GlutViewer viewer(argc, argv, NULL);
-	separateData.sv = &sv;
-	separateData.viewer = &viewer;
-	separateData.left = lefts;
-	separateData.right = rights;;
-
-	//В цикле создаем облако точек  и осуществляем разделение его на объекты
-	//Выход по нажатию Enter
-	cout << "Tune up separation params\n";
-	cout << "Press any key to accept MaxDist parameter or Enter to save file\n";
-	int keycode = 0;
-	do
-	{
-	separateData.cloud = sv.CalculatePointCloud(lefts, rights);
-	separateData.cloud->SeparateObjects(separateData.maxDist / 10.0f);
-	viewer.UpdateGeometry(separateData.cloud);
-	keycode = waitKey(0);
-	} while (keycode != 13);
-
-	cout << "Saving files...\n";
-	separateData.cloud->SaveToObj("cloud.obj");
-
-
-	*/
-
 	//Захват изображений
 	cap1 >> leftIm;
 	cap2 >> rightIm;
 	convertImage(leftIm, 0.5);
 	convertImage(rightIm, 0.5);
 
+	stereo_cycle(sv, leftIm, rightIm);
+
 	PointCloud<PointXYZRGB>::Ptr cloud = sv.CalculatePointCloud(leftIm, rightIm);
-	/*PointCloud<PointXYZ>::Ptr cloud_filtered(new PointCloud<PointXYZ>());
 
-	pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
-	sor.setInputCloud(cloud);
-	sor.setMeanK(10);
-	sor.setStddevMulThresh(0.0001);
-	sor.filter(*cloud_filtered);*/
 
-	pcl::visualization::CloudViewer viewer("Filtered");
-	viewer.showCloud(cloud);
-
-	while (!viewer.wasStopped())
-	{
-	}
-
-	//Сохранение файла конфигурации
-	/*if (!isStereoConfig)
-	{
-	char answer;
-	cout << "Do you want to save config? (y\\n): ";
-	cin >> answer;
-	if (answer == 'y')
-	{
-	isStereoConfig = true;
-	cout << "Enter filename *.yml or *.xml: ";
-	cin >> stereoFilename;
-	}
-	}
-
-	if (isStereoConfig)
-	{
-	if (useStereoSGBM)
-	stereoSGBMParams.sgbm->save(stereoFilename);
-	else
-	stereoBMParams.sbm->save(stereoFilename);
-	}*/
-
+	
 
 	return 0;
 }
@@ -423,7 +303,7 @@ bool aiming(VideoCapture & cap1, VideoCapture & cap2)
 		img1Flip.copyTo(left);
 		img2Flip.copyTo(right);
 
-		imshow("Aiming", img);
+		cv::imshow("Aiming", img);
 
 		//Выход по нажатию кнопки
 		code = waitKey(1);
@@ -485,8 +365,8 @@ bool calibrate(VideoCapture cap1, VideoCapture cap2, StereoVision& sv, Size patt
 		{
 			//Показываем результат
 			sv.Rectify(leftIm, rightIm);
-			imshow("left rectified", leftIm);
-			imshow("right rectified", rightIm);
+			cv::imshow("left rectified", leftIm);
+			cv::imshow("right rectified", rightIm);
 			waitKey(0);
 			destroyWindow("left rectified");
 			destroyWindow("right rectified");
@@ -522,7 +402,7 @@ bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
 
 		//Построение и показ карты различий
 		sv.CalculatePointCloud(left, right, disparity, true);
-		imshow("disparity", disparity);
+		cv::imshow("disparity", disparity);
 
 		keyCode = waitKey(1);
 		if (keyCode != -1)break;
@@ -530,159 +410,309 @@ bool disparityRealtime(VideoCapture cap1, VideoCapture cap2, StereoVision& sv)
 	return keyCode == 27;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////                    ОТОБРАЖЕНИЕ ПОЛЗУНКОВ                     ///////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
-void displayTrackbarsSGBM(CallbackData& data)
+
+//////////////////////////////////////////////////////////////////////////
+
+// VV==MAIN==VV
+// Содержит цикл, в котором
+// 1 - Изменяются параметры алгоритма
+// 2 - Пересчитывается облако точек в соответствии с выбранным алгоритмом
+void stereo_cycle(StereoVision& sv, cv::Mat left, cv::Mat right)
 {
-	namedWindow("trackbars", CV_WINDOW_FREERATIO);
-	createTrackbar("Min Disparity", "trackbars", &stereoSGBMParams.minDisparity, 100, callbackSGBM, (void*)&data);
-	createTrackbar("Num Disparties", "trackbars", &stereoSGBMParams.numDisparities, 200, callbackSGBM, (void*)&data);
-	createTrackbar("SAD Window Size", "trackbars", &stereoSGBMParams.SADWindowSize, 20, callbackSGBM, (void*)&data);
-	createTrackbar("P1", "trackbars", &stereoSGBMParams.p1, 3000, callbackSGBM, (void*)&data);
-	createTrackbar("P2", "trackbars", &stereoSGBMParams.p2, 3000, callbackSGBM, (void*)&data);
-	createTrackbar("Disp12MaxDiff", "trackbars", &stereoSGBMParams.disp12MaxDiff, 100, callbackSGBM, (void*)&data);
-	createTrackbar("preFilterCap", "trackbars", &stereoSGBMParams.preFilterCap, 100, callbackSGBM, (void*)&data);
-	createTrackbar("Uniqueness Ratio", "trackbars", &stereoSGBMParams.uniquenessRatio, 100, callbackSGBM, (void*)&data);
-	createTrackbar("Speckle Win Size", "trackbars", &stereoSGBMParams.speckleWindowSize, 200, callbackSGBM, (void*)&data);
-	createTrackbar("Speckle Range", "trackbars", &stereoSGBMParams.speckleRange, 10, callbackSGBM, (void*)&data);
-}
-void displayTrackbarsBM(CallbackData& data)
-{
-	namedWindow("trackbars", CV_WINDOW_FREERATIO);
-	createTrackbar("Block size", "trackbars", &stereoBMParams.blockSize, 100, callbackBM, (void*)&data);
-	createTrackbar("Num Disparties", "trackbars", &stereoBMParams.numDisparities, 300, callbackBM, (void*)&data);
-	createTrackbar("Pre filter size", "trackbars", &stereoBMParams.preFilterSize, 100, callbackBM, (void*)&data);
-	createTrackbar("Pre filter cap", "trackbars", &stereoBMParams.preFilterCap, 63, callbackBM, (void*)&data);
-	createTrackbar("Min disparity", "trackbars", &stereoBMParams.minDisparity, 100, callbackBM, (void*)&data);
-	createTrackbar("Texture threshold", "trackbars", &stereoBMParams.textureThreshold, 5000, callbackBM, (void*)&data);
-	createTrackbar("Uniquess ratio", "trackbars", &stereoBMParams.uniquenessRatio, 100, callbackBM, (void*)&data);
-	createTrackbar("Speckle win size", "trackbars", &stereoBMParams.speckleWindowSize, 200, callbackBM, (void*)&data);
-	createTrackbar("Speckle range", "trackbars", &stereoBMParams.speckleRange, 100, callbackBM, (void*)&data);
-	createTrackbar("Disp12MaxDiff", "trackbars", &stereoBMParams.disp12MaxDiff, 100, callbackBM, (void*)&data);
+	// Algorithm objects
+	pcl::AdaptiveCostSOStereoMatching acsosm;
+	pcl::BlockBasedStereoMatching bbsm;
+
+	// Algorithm settings
+	Common_args comm_a;
+	ACSOSM_args acsosm_a;
+	BBSM_args bbsm_a;
 
 
-}
+	// Output point cloud
+	pcl::PointCloud<pcl::PointXYZRGB>::Ptr outCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
-void displayTrackbarSeparate()
-{
-	createTrackbar("Max dist", "trackbars", &separateData.maxDist, 30, NULL, NULL);
-	createTrackbar("Min count", "trackbars", &separateData.minCount, 300, callbackMinCount, &separateData);
-}
+	// Staff variables
+	enum { END_CMD = 'z' };
+	char command; // Continue? 
+	int alg; // 1 - ACSOSM, 2 - BBSM
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////                        СОБЫТИЯ ПОЛЗУНКОВ                     ///////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
+	// INPUT
+	cout << "Выберите алгоритм (1 - для ACSOSM, 2 - для BBSM): ";
+	cin >> alg;
 
-//События ползунков настройи SGBM
-void callbackSGBM(int wtf, void* data)
-{
-	CallbackData cData = *(CallbackData*)data;
+	// CALCULATIONS
+	do
+	{
+		switch (alg)
+		{
+		case 1:
+			ACSOSM_preset(acsosm, comm_a, acsosm_a);
 
-	//Ограничения на параметры
-	if (stereoSGBMParams.numDisparities % 16 != 0)
-		stereoSGBMParams.numDisparities -= stereoSGBMParams.numDisparities % 16;
-	if (stereoSGBMParams.numDisparities < 16)stereoSGBMParams.numDisparities = 16;
+			//acsosm.compute(*leftCloud, *rightCloud);
+			//acsosm.medianFilter(comm_a.median_filter_radius);
+			//acsosm.getPointCloud(u0, v0, f, dist, outCloud, leftCloud);
 
-	if (stereoSGBMParams.preFilterCap % 2 == 0)stereoSGBMParams.preFilterCap++;
+			//Настраиваем объект StereoMatcher в sv
+			sv.SetStereoMatcher(& acsosm);
+			break;
 
-	//Настройка
-	stereoSGBMParams.sgbm = StereoSGBM::create(stereoSGBMParams.minDisparity, stereoSGBMParams.numDisparities, stereoSGBMParams.SADWindowSize);
-	stereoSGBMParams.sgbm->setPreFilterCap(stereoSGBMParams.preFilterCap);
-	stereoSGBMParams.sgbm->setP1(stereoSGBMParams.p1);
-	stereoSGBMParams.sgbm->setP2(stereoSGBMParams.p2);
-	stereoSGBMParams.sgbm->setDisp12MaxDiff(stereoSGBMParams.disp12MaxDiff - 1);
-	stereoSGBMParams.sgbm->setUniquenessRatio(stereoSGBMParams.uniquenessRatio);
-	stereoSGBMParams.sgbm->setSpeckleWindowSize(stereoSGBMParams.speckleWindowSize);
-	stereoSGBMParams.sgbm->setSpeckleRange(stereoSGBMParams.speckleRange);
-	//sgbm->setMode(cv::StereoSGBM::MODE_SGBM); // : StereoSGBM::MODE_HH*/
+		case 2:
+			BBSM_preset(bbsm, comm_a, bbsm_a);
 
-	//Расчет карты глубины и показ ее
-	Mat disparity;
-	cData.sv.SetStereoMatcher(stereoSGBMParams.sgbm);
-	cData.sv.CalculatePointCloud(cData.left, cData.right, disparity, true);
-	imshow("disparity", disparity);
-}
+			//bbsm.compute(*leftCloud, *rightCloud);
+			//bbsm.medianFilter(comm_a.median_filter_radius);
+			//bbsm.getPointCloud(u0, v0, f, dist, outCloud, rightCloud);
 
-//События ползунков настройки BM
-void callbackBM(int wtf, void* data)
-{
-	CallbackData cData = *(CallbackData*)data;
+			//Настраиваем объект StereoMatcher в sv
+			sv.SetStereoMatcher(&bbsm);
+			break;
+		}
 
-	//Ограничения на параметры
-	if (stereoBMParams.numDisparities % 16 != 0)
-		stereoBMParams.numDisparities -= stereoBMParams.numDisparities % 16;
-	if (stereoBMParams.numDisparities < 16)stereoBMParams.numDisparities = 16;
+		//Получаем облако точек
+		sv.medianFilterRadius = comm_a.median_filter_radius;
+		outCloud = sv.CalculatePointCloud(left, right);
 
-	if (stereoBMParams.preFilterCap % 2 == 0)stereoBMParams.preFilterCap++;
+		//Визуализация
+		pcl::visualization::CloudViewer viewer("Filtered");
+		viewer.showCloud(outCloud);
 
-	if (stereoBMParams.blockSize % 2 == 0)stereoBMParams.blockSize++;
-	if (stereoBMParams.blockSize < 5)stereoBMParams.blockSize = 5;
+		while (!viewer.wasStopped());
 
-	if (stereoBMParams.preFilterSize % 2 == 0)stereoBMParams.preFilterSize++;
-	if (stereoBMParams.preFilterSize < 5)stereoBMParams.preFilterSize = 5;
-
-	//Настройка
-	stereoBMParams.sbm = cv::StereoBM::create(stereoBMParams.numDisparities, stereoBMParams.blockSize);
-	stereoBMParams.sbm->setPreFilterSize(stereoBMParams.preFilterSize);				//Влиянеие не обнаружено
-	stereoBMParams.sbm->setPreFilterCap(stereoBMParams.preFilterCap);				//Что - то нечетное, уменьшает шумы
-	stereoBMParams.sbm->setMinDisparity(stereoBMParams.minDisparity);				//Меньше - разбитое фото, больше - темное (изменения сглаживаются)
-	stereoBMParams.sbm->setTextureThreshold(stereoBMParams.textureThreshold);		//Порог текстуры (> = появляются черные пятна, < пятен нет, но детализация уменьшается)
-	stereoBMParams.sbm->setUniquenessRatio(stereoBMParams.uniquenessRatio);			//Влияет на контуры (> четче)
-	stereoBMParams.sbm->setSpeckleWindowSize(stereoBMParams.speckleWindowSize);		//Жесть какая - то
-	stereoBMParams.sbm->setSpeckleRange(stereoBMParams.speckleRange);
-	stereoBMParams.sbm->setDisp12MaxDiff(stereoBMParams.disp12MaxDiff);				//Сглаживает шумы
-
-	//Расчет карты глубины и показ ее
-	Mat disparity;
-	cData.sv.SetStereoMatcher(stereoBMParams.sbm);
-	cData.sv.CalculatePointCloud(cData.left, cData.right, disparity, true);
-
-	imshow("disparity", disparity);
+		printf("'z' = END || any key = CONTINUE:  ");
+		scanf("%c", &command);
+	} while (command != END_CMD);
 }
 
-//События ползуна минимального числа объектов
-void callbackMinCount(int wtf, void* data)
+// Функции настройки алгоритмов
+// SETTINGS
+// Обновить настройки алгоритма ACSOSM по введенным данным
+// Позволяет выбрать редактируемое свойство алгоритма
+// * acsosm[in/out]   : объект алгоритма
+// * comm_a[in/out]   : общие настройки алгоритмов BBSM и ACSOSM
+// * acsosm_a[in/out] : настройки ACSOSM алгоритма
+void ACSOSM_preset(pcl::AdaptiveCostSOStereoMatching & acsosm, Common_args & comm_a, ACSOSM_args & acsosm_a)
 {
-	SeparateData* cData = (SeparateData*)data;
-	if (cData->cloud == NULL)return;
+	print_Common_properties_list();
+	print_ACSOSM_properties_list();
+	cout << "Введите номер свойства, которые вы хотите редактировать (-1 для завершения):";
+	int cmd; // ^
 
-	cData->cloud->DeleteNoise(cData->minCount);
-	cData->viewer->UpdateGeometry(cData->cloud);
+	// exit from cycle when break in switch
+	do
+	{
+		scanf("%d", &cmd);
+		switch (cmd)
+		{
+		case 1:
+			printf("1)MaxDisparity[int] (%d): ", comm_a.max_disparity);
+			scanf("%d", &comm_a.max_disparity);
+			//acsosm.setMaxDisparity(comm_a.max_disparity);
+			break;
+
+		case 2:
+			printf("2)XOffset[int] (%d): ", comm_a.x_offset);
+			scanf("%d", &comm_a.x_offset);
+			//acsosm.setXOffset(comm_a.x_offset);
+			break;
+
+		case 3:
+			printf("3)RatioFilter[int] (%d): ", comm_a.ratio_filter);
+			scanf("%d", &comm_a.ratio_filter);
+			//acsosm.setRatioFilter(comm_a.ratio_filter);
+			break;
+
+		case 4:
+			printf("4)PeakFilter[int] (%d): ", comm_a.peak_filter);
+			scanf("%d", &comm_a.peak_filter);
+			//acsosm.setPeakFilter(comm_a.peak_filter);
+			break;
+
+		case 5:
+			printf("5)PreProcessing[bool](0 = false, 1 = true) (%d): ", comm_a.is_pre_processing);
+			scanf("%d", &comm_a.is_pre_processing);
+			//acsosm.setPreProcessing(comm_a.is_pre_processing);
+			break;
+
+		case 6:
+			printf("6)LeftRightCheck[bool](0 = false, 1 = true) (%d): ", comm_a.is_left_right_check);
+			scanf("%d", &comm_a.is_left_right_check);
+			//acsosm.setLeftRightCheck(comm_a.is_left_right_check);
+			break;
+
+		case 7:
+			printf("7)LeftRightCheckTreshold[int] (%d): ", comm_a.left_to_right_check_treshold);
+			scanf("%d", &comm_a.left_to_right_check_treshold);
+			//acsosm.setLeftRightCheckThreshold(comm_a.left_to_right_check_treshold);
+			break;
+
+		case 8:
+			printf("8)MedianFilterRadius[int] (%d): ", comm_a.median_filter_radius);
+			scanf("%d", &comm_a.median_filter_radius);
+			// Not YET!
+			break;
+
+		case 9:
+			printf("9)Radius[int] (%d): ", acsosm_a.radius);
+			scanf("%d", &acsosm_a.radius);
+			//acsosm.setRadius(acsosm_a.radius);
+			break;
+
+		case 10:
+			printf("10)GammaS[int] (%d): ", acsosm_a.gamma_s);
+			scanf("%d", &acsosm_a.gamma_s);
+			//acsosm.setGammaS(acsosm_a.gamma_s);
+			break;
+
+		case 11:
+			printf("11)GammaC[int] (%d): ", acsosm_a.gamma_c);
+			scanf("%d", &acsosm_a.gamma_c);
+			//acsosm.setGammaC(acsosm_a.gamma_c);
+			break;
+
+		case 12:
+			printf("12)SmoothnessWeak[int] (%d): ", acsosm_a.smoothness_weak);
+			scanf("%d", &acsosm_a.smoothness_weak);
+			//acsosm.setSmoothWeak(acsosm_a.smoothness_weak);
+			break;
+
+		case 13:
+			printf("13)SmoothnessStrong[int] (%d): ", acsosm_a.smoothness_strong);
+			scanf("%d", &acsosm_a.smoothness_strong);
+			//acsosm.setSmoothStrong(acsosm_a.smoothness_strong);
+			break;
+		}
+	} while (cmd != -1);
+
+	acsosm.setMaxDisparity(comm_a.max_disparity);
+	acsosm.setXOffset(comm_a.x_offset);
+	acsosm.setRadius(acsosm_a.radius);
+	acsosm.setSmoothWeak(acsosm_a.smoothness_weak);
+	acsosm.setSmoothStrong(acsosm_a.smoothness_strong);
+	acsosm.setGammaC(acsosm_a.gamma_c);
+	acsosm.setGammaS(acsosm_a.gamma_s);
+	acsosm.setRatioFilter(comm_a.ratio_filter);
+	acsosm.setPeakFilter(comm_a.peak_filter);
+	acsosm.setLeftRightCheck(comm_a.is_left_right_check);
+	acsosm.setLeftRightCheckThreshold(comm_a.left_to_right_check_treshold);
+	acsosm.setPreProcessing(comm_a.is_pre_processing);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-////////////                      ЗАГРУЗКА ПАРАМЕТРОВ StereoMatcher                     ///////////
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void loadBMSettings(StereoBMParams& params, const char* filename)
+// Обновить настройки алгоритма BBSM по введенным данным
+// Позволяет выбрать редактируемое свойство алгоритма BBSM
+// * bbsm[in/out]   : объект алгоритма
+// * comm_a[in/out] : общие настройки алгоритмов BBSM и ACSOSM
+// * bbsm_a[in/out] : настройки BBSM алгоритма
+void BBSM_preset(pcl::BlockBasedStereoMatching & bbsm, Common_args & comm_a, BBSM_args & bbsm_a)
 {
-	auto bm = params.sbm;
-	bm = StereoBM::load<StereoBM>(filename);
-	params.blockSize = bm->getBlockSize();
-	params.disp12MaxDiff = bm->getDisp12MaxDiff();
-	params.minDisparity = bm->getMinDisparity();
-	params.numDisparities = bm->getNumDisparities();
-	params.preFilterCap = bm->getPreFilterCap();
-	params.preFilterSize = bm->getPreFilterSize();
-	params.speckleRange = bm->getSpeckleRange();
-	params.speckleWindowSize = bm->getSpeckleWindowSize();
-	params.textureThreshold = bm->getTextureThreshold();
-	params.uniquenessRatio = bm->getUniquenessRatio();
+	print_Common_properties_list();
+	print_BBSM_properties_list();
+
+	cout << "Введите номер свойства, которые вы хотите редактировать (-1 для завершения):";
+	int cmd; // ^
+
+	// exit from cycle when break in switch
+	while (true)
+	{
+		scanf("%d", &cmd);
+		switch (cmd)
+		{
+		case 1:
+			printf("1)MaxDisparity[int] (%d): ", comm_a.max_disparity);
+			scanf("%d", &comm_a.max_disparity);
+			break;
+
+		case 2:
+			printf("2)XOffset[int] (%d): ", comm_a.x_offset);
+			scanf("%d", &comm_a.x_offset);
+			
+			break;
+
+		case 3:
+			printf("3)RatioFilter[int] (%d): ", comm_a.ratio_filter);
+			scanf("%d", &comm_a.ratio_filter);
+			
+			break;
+
+		case 4:
+			printf("4)PeakFilter[int] (%d): ", comm_a.peak_filter);
+			scanf("%d", &comm_a.peak_filter);
+			
+			break;
+
+		case 5:
+			printf("5)PreProcessing[bool](0 = false, 1 = true) (%d): ", comm_a.is_pre_processing);
+			scanf("%d", &comm_a.is_pre_processing);
+			
+			break;
+
+		case 6:
+			printf("6)LeftRightCheck[bool](0 = false, 1 = true) (%d): ", comm_a.is_left_right_check);
+			scanf("%d", &comm_a.is_left_right_check);
+			
+			break;
+
+		case 7:
+			printf("7)LeftRightCheckTreshold[int] (%d): ", comm_a.left_to_right_check_treshold);
+			scanf("%d", &comm_a.left_to_right_check_treshold);
+			
+			break;
+
+		case 8:
+			printf("8)MedianFilterRadius[int] (%d): ", comm_a.median_filter_radius);
+			scanf("%d", &comm_a.median_filter_radius);
+			// Not YET!
+			break;
+
+		case 9:
+			printf("9)Radius[int] (%d): ", bbsm_a.radius);
+			scanf("%d", &bbsm_a.radius);
+		
+			break;
+
+		default:
+			break; // exit_cycle
+		}
+	}
+
+	bbsm.setMaxDisparity(comm_a.max_disparity);
+	bbsm.setXOffset(comm_a.x_offset);
+	bbsm.setRatioFilter(comm_a.ratio_filter);
+	bbsm.setPeakFilter(comm_a.peak_filter);
+	bbsm.setPreProcessing(comm_a.is_pre_processing);
+	bbsm.setLeftRightCheck(comm_a.is_left_right_check);
+	bbsm.setLeftRightCheckThreshold(comm_a.left_to_right_check_treshold);
+	bbsm.setRadius(bbsm_a.radius);
 }
 
-void loadSGBMSettings(StereoSGBMParams& params, const char* filename)
+
+// Функции печати, выводящие список свойств конкретного алгоритма на экран
+// PRINT
+void print_Common_properties_list()
 {
-	/*auto sgbm = params.sgbm;
-	sgbm = Algorithm::load<StereoSGBM>(filename);
-	params.disp12MaxDiff = sgbm->getDisp12MaxDiff();
-	params.minDisparity = sgbm->getMinDisparity();
-	params.numDisparities = sgbm->getNumDisparities();
-	params.p1 = sgbm->getP1();
-	params.p2 = sgbm->getP2();
-	params.preFilterCap = sgbm->getPreFilterCap();
-	params.SADWindowSize = sgbm->getBlockSize();	//??
-	params.speckleRange = sgbm->getSpeckleRange();
-	params.speckleWindowSize = sgbm->getSpeckleWindowSize();
-	params.uniquenessRatio = sgbm->getUniquenessRatio();*/
+	printf("%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+		"1)MaxDisparity[int]: ",
+		"2)XOffset[int]: ",
+		"3)RatioFilter[int]: ",
+		"4)PeakFilter[int]: ",
+		"5)PreProcessing[bool](0 = false, 1 = true): ",
+		"6)LeftRightCheck[bool](0 = false, 1 = true): ",
+		"7)LeftRightCheckTreshold[int]: ",
+		"8)MedianFilterRadius[int]: ");
+}
+
+void print_ACSOSM_properties_list()
+{
+	printf("%s\n%s\n%s\n%s\n%s\n",
+		"9)Radius[int]: ",
+		"10)GammaS[int]",
+		"11)GammaC[int]",
+		"12)SmoothnessWeak[int]",
+		"13)SmoothnessStrong[int]");
+}
+
+void print_BBSM_properties_list()
+{
+	puts("9)Radius[int]: ");
 }

@@ -18,7 +18,7 @@ StereoVision::StereoVision(const char *name)
 }
 
 //Получает параметры калибровки
-StereoVision::StereoVision(StereoCalibData calibData, cv::Ptr<cv::StereoMatcher> stereoMatcher)
+StereoVision::StereoVision(StereoCalibData calibData, pcl::StereoMatching* stereoMatcher)
 {
 	this->calibData = calibData;
 	_createUndistortRectifyMaps(calibData);
@@ -221,22 +221,11 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr  StereoVision::_calculatePointCloud(const
 	pcl::PointCloud<pcl::RGB>::Ptr leftCloud = _imgToPointCloud(leftRemaped);
 	pcl::PointCloud<pcl::RGB>::Ptr rightCloud = _imgToPointCloud(rightRemaped);
 
-	pcl::AdaptiveCostSOStereoMatching stereo;
-	stereo.setMaxDisparity(60);
-	//stereo.setXOffest(0); Почему-то не распознается
-	stereo.setRadius(5);
-	stereo.setSmoothWeak(20);
-	stereo.setSmoothStrong(100);
-	stereo.setGammaC(25);
-	stereo.setGammaS(10);
-	stereo.setRatioFilter(20);
-	stereo.setPeakFilter(0);
-	stereo.setLeftRightCheck(true);
-	stereo.setLeftRightCheckThreshold(1);
-	stereo.setPreProcessing(true);
+	//stereo.compute(*leftCloud, *rightCloud);
+	//stereo.medianFilter(4);
 
-	stereo.compute(*leftCloud, *rightCloud);
-	stereo.medianFilter(4);
+	stereoMatcher->compute(*leftCloud, *rightCloud);
+	stereoMatcher->medianFilter(medianFilterRadius);
 
 	//focal length (???)
 	double f = calibData.LeftCameraMatrix.at<double>(0, 0);
@@ -249,7 +238,7 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr  StereoVision::_calculatePointCloud(const
 	double dist = calibData.CameraTransform.at<double>(0, 0);
 
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr out_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-	stereo.getPointCloud(318.11220, 224.334900, 368.534700, 0.8387445, out_cloud, leftCloud);
+	stereoMatcher->getPointCloud(318.11220, 224.334900, 368.534700, 0.8387445, out_cloud, leftCloud);
 	//stereo.getPointCloud(u0, v0, f, dist, out_cloud, leftCloud);
 
 
@@ -288,15 +277,15 @@ void StereoVision::SetCalibData(StereoCalibData calibData)
 }
 
 //Возвращает объект StereoMatcher
-cv::Ptr<cv::StereoMatcher> StereoVision::GetStereoMatcher()
+pcl::StereoMatching* StereoVision::GetStereoMatcher()
 {
 	return stereoMatcher;
 }
 
 //Задает объект StereoBM
-void StereoVision::SetStereoMatcher(cv::Ptr<cv::StereoMatcher> stereoMatcher)
+void StereoVision::SetStereoMatcher(pcl::StereoMatching* matcher)
 {
-	this->stereoMatcher = stereoMatcher;
+	this->stereoMatcher = matcher;
 }
 
 StereoVision& StereoVision::operator=(const StereoVision& other)

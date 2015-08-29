@@ -42,7 +42,7 @@ public:
 	StereoVision(const char* calibFileName);
 
 	/* Создает объект используя заданные настройки*/
-	StereoVision(StereoCalibData calibData, cv::Ptr<cv::StereoMatcher> stereoMatcher);
+	StereoVision(StereoCalibData calibData, pcl::StereoMatching* stereoMatcher);
 
 	/* Калибровка стерео-камеры (пары камер)
 	* param[in] left - изображение с левой камеры (CV_8UC1 - серое)
@@ -80,18 +80,25 @@ public:
 	void SetCalibData(StereoCalibData calibData);
 
 	//Возвращает объект StereoMatcher
-	cv::Ptr<cv::StereoMatcher> GetStereoMatcher();
+	pcl::StereoMatching* GetStereoMatcher();
 
 	//Задает объект StereoMathcer
-	void SetStereoMatcher(cv::Ptr<cv::StereoMatcher> stereoMatcher);
+	void SetStereoMatcher(pcl::StereoMatching* matcher);
 
 	StereoVision& operator=(const StereoVision& ohter);
+
+	///!!!!!!!!!!!! PUBLIC
+	//Так сделано, потому что я хочу спать
+	float medianFilterRadius;
 
 private:
 
 	StereoCalibData calibData;						//Калибровочные данные
-	cv::Ptr<cv::StereoMatcher> stereoMatcher;		//Объект для построения карты различий
+	//cv::Ptr<cv::StereoMatcher> stereoMatcher;		//Объект для построения карты различий
+
+	pcl::StereoMatching* stereoMatcher;
 	
+
 
 	//Создает матрицы исправленяи искажений
 	void _createUndistortRectifyMaps(StereoCalibData& data);
