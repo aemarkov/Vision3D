@@ -138,7 +138,7 @@ void stereo_cycle(pcl::PointCloud<pcl::RGB>::Ptr leftCloud, pcl::PointCloud<pcl:
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr outCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
 
 	// Staff variables
-	enum { CONTINUE_CMD = 'y' };
+	enum { END_CMD = 'z' };
 	char command; // Continue? 
 	int alg; // 1 - ACSOSM, 2 - BBSM
 
@@ -173,10 +173,12 @@ void stereo_cycle(pcl::PointCloud<pcl::RGB>::Ptr leftCloud, pcl::PointCloud<pcl:
 		// Now you can visualize out_cloud
 		// visualize(outCloud)
 
-
+		printf("'z' = END || any key = CONTINUE:  ");
 		scanf("%c", &command);
-	} while (command != CONTINUE_CMD);
+	} while (command != END_CMD);
 
+	// Write Point CLoud to File
+	pcl::io::savePCDFileASCII("out.pcd", outCloud);
 }
 
 // Функции настройки алгоритмов
